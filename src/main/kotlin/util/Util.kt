@@ -2,6 +2,10 @@ package util
 
 import org.jsoup.Jsoup
 
+fun getPriceWithoutComma(price: String): Int { // 숫자 사이에 ',' 들어 있는 String을 숫자로 만들어 줌
+    return price.replace(",","").toInt()
+}
+
 fun getCurrentPrice(stockCode: String): Int {
     val url = "https://finance.naver.com/item/main.nhn?code=${stockCode}"
     val document = Jsoup.connect(url).get()
@@ -12,17 +16,17 @@ fun getCurrentPrice(stockCode: String): Int {
         val text = elem.text()
 
         if (text.substring(0, 3) == "현재가") {
-            return Integer.parseInt(text.substring(4, text.indexOf(' ', 4)).replace(",",""))
+            return getPriceWithoutComma(text.substring(4, text.indexOf(' ', 4)))
         }
     }
 
     return -1
 }
 
-fun getCodesTop50(): ArrayList<String> {
+fun getCodesTop50(): ArrayList<String> { // 시가총액 상위 50개 종목의 코드 반환
     val url = "https://finance.naver.com/sise/sise_market_sum.nhn"
     val document = Jsoup.connect(url).get()
-    val tltles = document.getElementsByClass("tltle")
+    val tltles = document.getElementsByClass("tltle") // 종목정보 가진 클래스
 
     val arrayList = ArrayList<String>(50)
 
@@ -36,4 +40,44 @@ fun getCodesTop50(): ArrayList<String> {
     }
 
     return arrayList
+}
+
+fun getMovingAverage20(stockCode: String): Int {
+    return getMovingAverage(stockCode, 2)
+}
+
+fun getMovingAverage60(stockCode: String): Int {
+    return getMovingAverage(stockCode, 6)
+}
+
+fun getMovingAverage120(stockCode: String): Int {
+    return getMovingAverage(stockCode, 12)
+}
+
+fun getMovingAverage(stockCode: String, days10: Int): Int {
+    var url = "https://finance.naver.com/item/sise_day.nhn?code=$stockCode&page=1"
+    var sum = 0
+    var num = 0
+
+    for (i in 1 .. days10) {
+        url = url.dropLast(url.substring(url.lastIndexOf('=') + 1).length) + i // url 구성
+        val document = Jsoup.connect(url).get()
+        val elems = document.getElementsByClass("tah p11") // 숫자들을 가진 태그
+
+        var numOf0_bias = 0 // 전일비 차가 0이면 <img> 태그가 아닌 <span> 태그로 나와 계산 잘못 되는 것 방지
+
+        for (j in 0 until elems.size) {
+            if (elems[j].text() == "0") { // 전일비 0인 것 거름
+                numOf0_bias++
+                continue
+            }
+
+            if ((j - numOf0_bias) % 5 == 0) { // 종가만 거르기
+                sum += getPriceWithoutComma(elems[j].text())
+                num++
+            }
+        }
+    }
+
+    return sum / num
 }

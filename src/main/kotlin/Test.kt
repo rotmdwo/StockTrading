@@ -1,5 +1,4 @@
-import util.getCodesTop50
-import util.getCurrentPrice
+import util.*
 
 fun main() {
 
