@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    url: jdbc:mysql://kotlin-server-learning.cbaymlj1afih.us-east-2.rds.amazonaws.com/kotlin?serverTimezone=UTC&useUnicode=true&characterEncoding=utf8&autoReconnect=true&useSSL=false
+    username: rotmdwo
+    password: Tldoxmf22
+    data-username: rotmdwo
+    data-password: Tldoxmf22
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.MySQL5InnoDBDialect
