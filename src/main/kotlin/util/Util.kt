@@ -1,6 +1,9 @@
 package util
 
 import org.jsoup.Jsoup
+import org.openqa.selenium.By
+import org.openqa.selenium.chrome.ChromeDriver
+import org.openqa.selenium.chrome.ChromeOptions
 
 fun getPriceWithoutComma(price: String): Int { // 숫자 사이에 ',' 들어 있는 String을 숫자로 만들어 줌
     return price.replace(",","").toInt()
@@ -80,4 +83,60 @@ fun getMovingAverage(stockCode: String, days10: Int): Int {
     }
 
     return sum / num
+}
+
+fun accessToMiraeWTS(): ChromeDriver {
+    System.setProperty("webdriver.chrome.driver", "/Users/sungjaelee/Downloads/chromedriver")
+    val options = ChromeOptions()
+    options.setCapability("ignoreProtectedModeSettings", true)
+    val driver = ChromeDriver(options)
+    val url = "https://www.miraeassetdaewoo.com/"
+
+    // 메인 페이지 접속
+    driver.get(url)
+
+    // 프레임 선택
+    driver.switchTo().frame(driver.findElementById("contentframe"))
+    // 로그인 클릭
+    val login_box = driver.findElementByClassName("login_box")
+    val a = login_box.findElement(By.tagName("a"))
+    a.click()
+
+    // QR 로그인 선택
+    val menu_02 = driver.findElementByClassName("menu_02")
+    menu_02.click()
+
+    // 20초 대기
+    Thread.sleep(20000L)
+
+    // 트레이딩 탭 클릭
+    val quick_menu = driver.findElementByClassName("quick_menu")
+    val links = quick_menu.findElements(By.tagName("a"))
+    links[3].click()
+
+    // 새로 띄어지는 창으로 focus 옮김
+    val windows = driver.windowHandles
+    driver.switchTo().window(windows.last())
+
+    // frame 선택
+    driver.switchTo().frame(driver.findElementById("contentframe"))
+    // 주식종합 탭 클릭
+    val button = driver.findElementById("mdiMenu_mdi0100")
+    Thread.sleep(3000L)
+    button.click()
+
+    // 매수 탭 클릭
+    Thread.sleep(3000L)
+    driver.findElementById("ui-id-21").click()
+
+
+    /* HTML을 텍스트파일로 저장
+    val path = "html.txt"
+    val fWriter = FileWriter(path)
+    val str = driver.executeScript("return document.documentElement.innerHTML") as String
+    fWriter.write(str)
+    fWriter.close()
+     */
+
+    return driver
 }
