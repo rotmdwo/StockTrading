@@ -4,6 +4,7 @@ import org.jsoup.Jsoup
 import org.openqa.selenium.By
 import org.openqa.selenium.chrome.ChromeDriver
 import org.openqa.selenium.chrome.ChromeOptions
+import java.io.FileWriter
 
 fun getPriceWithoutComma(price: String): Int { // 숫자 사이에 ',' 들어 있는 String을 숫자로 만들어 줌
     return price.replace(",","").toInt()
@@ -109,8 +110,8 @@ fun accessToMiraeWTS(): ChromeDriver {
     driver.findElementByClassName("select_val").click()
     driver.findElementById("420").click()
 
-    // QR 인증 15초 대기
-    Thread.sleep(15000L)
+    // QR 인증 11초 대기
+    Thread.sleep(11000L)
 
     // 트레이딩 탭 클릭
     val quick_menu = driver.findElementByClassName("quick_menu")
@@ -131,14 +132,57 @@ fun accessToMiraeWTS(): ChromeDriver {
     Thread.sleep(1000L)
     driver.findElementById("ui-id-21").click()
 
+    return driver
+}
 
-    /* HTML을 텍스트파일로 저장
-    val path = "html.txt"
+// HTML을 텍스트파일로 저장
+fun saveHtmlAsTxt(driver: ChromeDriver, path: String) {
+    // ex) path = "html.txt"
     val fWriter = FileWriter(path)
     val str = driver.executeScript("return document.documentElement.innerHTML") as String
     fWriter.write(str)
     fWriter.close()
-     */
+}
 
-    return driver
+fun buy(driver: ChromeDriver, stockCode: String, quantity: Int) {
+    // 매수 탭 클릭
+    driver.findElementById("ui-id-21").click()
+
+    // 종목코드 입력
+    Thread.sleep(2000L)
+    driver.findElementById("search_num").sendKeys(stockCode)
+
+    // 시장가 선택
+    driver.findElementsByName("orderOp_0100")[1].click()
+
+    // 매수량 설정
+    driver.findElementById("mesuQty_0100").sendKeys("$quantity")
+
+    // 매수 버튼 클릭
+    driver.findElementById("mesu_0100").click()
+
+    // 매수 확인
+    Thread.sleep(1000L)
+    driver.findElementById("confirm").click()
+}
+
+fun sell(driver: ChromeDriver, stockCode: String, quantity: Int) {
+    // 매도 탭 클릭
+    driver.findElementById("ui-id-22").click()
+
+    // 종목코드 입력
+    Thread.sleep(2000L)
+    driver.findElementsById("search_num")[1].sendKeys(stockCode)
+
+    // 시장가 선택
+    driver.findElementsByName("orderOp1_0100")[1].click()
+
+    // 매도량 설정
+    driver.findElementById("qtyMedo_0100").sendKeys("$quantity")
+
+    // 매도 버튼 클릭
+    driver.findElementById("medo_0100").click()
+
+    Thread.sleep(1000L)
+    driver.findElementById("confirm").click()
 }
