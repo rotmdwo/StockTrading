@@ -99,15 +99,18 @@ fun accessToMiraeWTS(): ChromeDriver {
     driver.switchTo().frame(driver.findElementById("contentframe"))
     // 로그인 클릭
     val login_box = driver.findElementByClassName("login_box")
-    val a = login_box.findElement(By.tagName("a"))
-    a.click()
+    login_box.findElement(By.tagName("a")).click()
 
     // QR 로그인 선택
-    val menu_02 = driver.findElementByClassName("menu_02")
-    menu_02.click()
+    driver.findElementByClassName("menu_02").click()
 
-    // 20초 대기
-    Thread.sleep(20000L)
+    // 자동 로그아웃 시간 7시간으로 설정
+    Thread.sleep(4000L)
+    driver.findElementByClassName("select_val").click()
+    driver.findElementById("420").click()
+
+    // QR 인증 15초 대기
+    Thread.sleep(15000L)
 
     // 트레이딩 탭 클릭
     val quick_menu = driver.findElementByClassName("quick_menu")
@@ -120,13 +123,12 @@ fun accessToMiraeWTS(): ChromeDriver {
 
     // frame 선택
     driver.switchTo().frame(driver.findElementById("contentframe"))
-    // 주식종합 탭 클릭
-    val button = driver.findElementById("mdiMenu_mdi0100")
+    // 로딩 대기 후 주식종합 탭 클릭
     Thread.sleep(3000L)
-    button.click()
+    driver.findElementById("mdiMenu_mdi0100").click()
 
-    // 매수 탭 클릭
-    Thread.sleep(3000L)
+    // 로딩 대기 후 매수 탭 클릭
+    Thread.sleep(1000L)
     driver.findElementById("ui-id-21").click()
 
 
