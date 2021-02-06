@@ -5,6 +5,7 @@ import org.openqa.selenium.By
 import org.openqa.selenium.chrome.ChromeDriver
 import org.openqa.selenium.chrome.ChromeOptions
 import java.io.FileWriter
+import java.sql.DriverManager
 
 fun getPriceWithoutComma(price: String): Int { // 숫자 사이에 ',' 들어 있는 String을 숫자로 만들어 줌
     return price.replace(",","").toInt()
@@ -185,4 +186,39 @@ fun sell(driver: ChromeDriver, stockCode: String, quantity: Int) {
 
     Thread.sleep(1000L)
     driver.findElementById("confirm").click()
+}
+
+fun getStockQuantityFromDB(stockCode: String, user: String, pw: String): Int {
+    Class.forName("com.mysql.cj.jdbc.Driver")
+    val conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/STOCK_TRADING", user, pw)
+
+    val sql = "SELECT * FROM TB_QUANTITY WHERE CODE = ?"
+    val stmt = conn.prepareStatement(sql)
+    stmt.setString(1, stockCode)
+    val rs = stmt.executeQuery()
+
+    val quantity =  if (rs.next()) rs.getInt("QUANTITY") else -1
+
+    conn.close()
+
+    return quantity
+}
+
+fun updateStockQuantityAtDB(stockCode: String, name: String, quantity: Int, user: String, pw: String): Int {
+    Class.forName("com.mysql.cj.jdbc.Driver")
+    val conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/STOCK_TRADING", user, pw)
+
+    val sql = "INSERT INTO TB_QUANTITY VALUES(?, ?, ?, NOW()) ON DUPLICATE KEY UPDATE " +
+            "QUANTITY = ? AND LAST_TRADING_DATE = NOW()"
+    val stmt = conn.prepareStatement(sql)
+    stmt.setString(1, stockCode)
+    stmt.setString(2, name)
+    stmt.setInt(3, quantity)
+    stmt.setInt(4, quantity)
+    val count = stmt.executeUpdate()
+
+    //if (count == 1) conn.commit() // auto-commit이라 제거
+    conn.close()
+
+    return count
 }
