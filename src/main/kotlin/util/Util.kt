@@ -4,8 +4,13 @@ import org.jsoup.Jsoup
 import org.openqa.selenium.By
 import org.openqa.selenium.chrome.ChromeDriver
 import org.openqa.selenium.chrome.ChromeOptions
+import stock.Stock
 import java.io.FileWriter
+import java.sql.Date
 import java.sql.DriverManager
+import java.sql.Timestamp
+import java.util.*
+import kotlin.collections.ArrayList
 
 fun getPriceWithoutComma(price: String): Int { // 숫자 사이에 ',' 들어 있는 String을 숫자로 만들어 줌
     return price.replace(",","").toInt()
@@ -42,6 +47,31 @@ fun getCodesTop50(): ArrayList<String> { // 시가총액 상위 50개 종목의 
         val code = href.substring(href.indexOf('=') + 1)
 
         arrayList.add(code)
+    }
+
+    return arrayList
+}
+
+fun getCodesTopKospiKosdaq200(): ArrayList<Stock> {
+    val baseUrl = "https://finance.naver.com/sise/sise_market_sum.nhn?"
+    val arrayList = ArrayList<Stock>(400)
+
+    for (sosok in 0 .. 1) { // KOSPI: sosok 0, KOSDAQ: sosok 1
+        for (page in 1 .. 4) {
+            val url = baseUrl + "sosok=$sosok&page=$page"
+            val document = Jsoup.connect(url).get()
+            val tltles = document.getElementsByClass("tltle") // 종목정보 가진 클래스
+
+            for (i in 0 until tltles.size) {
+                val elem = tltles[i]
+                val company = elem.text()
+                val href = elem.attr("href")
+                val code = href.substring(href.indexOf('=') + 1)
+
+                val stock = Stock(code, company, 0, 0, System.currentTimeMillis())
+                arrayList.add(stock)
+            }
+        }
     }
 
     return arrayList
@@ -192,7 +222,7 @@ fun getStockQuantityFromDB(stockCode: String, user: String, pw: String): Int {
     Class.forName("com.mysql.cj.jdbc.Driver")
     val conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/STOCK_TRADING", user, pw)
 
-    val sql = "SELECT * FROM TB_QUANTITY WHERE CODE = ?"
+    val sql = "SELECT * FROM TB_STOCK WHERE CODE = ?"
     val stmt = conn.prepareStatement(sql)
     stmt.setString(1, stockCode)
     val rs = stmt.executeQuery()
@@ -204,21 +234,37 @@ fun getStockQuantityFromDB(stockCode: String, user: String, pw: String): Int {
     return quantity
 }
 
-fun updateStockQuantityAtDB(stockCode: String, name: String, quantity: Int, user: String, pw: String): Int {
+fun updateStockQuantityAtDB(stock: Stock, user: String, pw: String): Int {
     Class.forName("com.mysql.cj.jdbc.Driver")
     val conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/STOCK_TRADING", user, pw)
 
-    val sql = "INSERT INTO TB_QUANTITY VALUES(?, ?, ?, NOW()) ON DUPLICATE KEY UPDATE " +
-            "QUANTITY = ? AND LAST_TRADING_DATE = NOW()"
+    val sql = "INSERT INTO TB_STOCK VALUES(?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE " +
+            "QUANTITY = ? AND AVERAGE_PRICE = ? AND LAST_TRADING_DATE = ?"
     val stmt = conn.prepareStatement(sql)
-    stmt.setString(1, stockCode)
-    stmt.setString(2, name)
-    stmt.setInt(3, quantity)
-    stmt.setInt(4, quantity)
+    stmt.setString(1, stock.code)
+    stmt.setString(2, stock.name)
+    stmt.setInt(3, stock.quantity)
+    stmt.setInt(4, stock.averagePrice)
+    stmt.setTimestamp(5, Timestamp(stock.lastTradingDate))
+
+    stmt.setInt(6, stock.quantity)
+    stmt.setInt(7, stock.averagePrice)
+    stmt.setTimestamp(8, Timestamp(stock.lastTradingDate))
     val count = stmt.executeUpdate()
 
     //if (count == 1) conn.commit() // auto-commit이라 제거
     conn.close()
 
     return count
+}
+
+fun addFirstStocksInfoToDB(user: String, pw: String) {
+    val stocks = getCodesTopKospiKosdaq200()
+    var index = 0
+
+    while (index < stocks.size) {
+        val count = updateStockQuantityAtDB(stocks[index], user, pw)
+
+        if (count == 1) index++
+    }
 }
