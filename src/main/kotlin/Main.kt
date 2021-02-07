@@ -1,3 +1,4 @@
+import org.openqa.selenium.chrome.ChromeDriver
 import stock.Stock
 import util.*
 import java.io.BufferedReader
@@ -7,6 +8,7 @@ import java.util.*
 import kotlin.system.exitProcess
 
 lateinit var stocks: ArrayList<Stock>
+var driver: ChromeDriver? = null
 
 fun main() {
     val br = BufferedReader(InputStreamReader(System.`in`))
@@ -30,8 +32,15 @@ fun main() {
 
     while (command != "quit") {
         when (command) {
-            "access" -> accessToMiraeWTS()
-            "begin algorithm" -> startAutoTrading(stocks)
+            "access" -> driver = accessToMiraeWTS()
+            "trade" -> {
+                driver?.let {// if not null
+                    startAutoTrading(it, stocks, id, pw)
+                } ?: run { // if null
+                    println("먼저 access 명령어를 통해 WTS에 접속해주세요.")
+                }
+            }
+            "sell" -> sell(driver!!, "000660", 1)
             else -> println("지원하지 않는 명령어입니다.")
         }
 

@@ -6,10 +6,9 @@ import org.openqa.selenium.chrome.ChromeDriver
 import org.openqa.selenium.chrome.ChromeOptions
 import stock.Stock
 import java.io.FileWriter
-import java.sql.Date
 import java.sql.DriverManager
 import java.sql.Timestamp
-import java.util.*
+import java.text.SimpleDateFormat
 import kotlin.collections.ArrayList
 
 fun getPriceWithoutComma(price: String): Int { // 숫자 사이에 ',' 들어 있는 String을 숫자로 만들어 줌
@@ -177,7 +176,8 @@ fun saveHtmlAsTxt(driver: ChromeDriver, path: String) {
     fWriter.close()
 }
 
-fun buy(driver: ChromeDriver, stockCode: String, quantity: Int) {
+// 매수 가격 반환
+fun buy(driver: ChromeDriver, stockCode: String, quantity: Int): Int {
     // 매수 탭 클릭
     driver.findElementById("ui-id-21").click()
 
@@ -196,10 +196,14 @@ fun buy(driver: ChromeDriver, stockCode: String, quantity: Int) {
 
     // 매수 확인
     Thread.sleep(1000L)
+    val price = getPriceWithoutComma(driver.findElementById("price").text)
     driver.findElementById("confirm").click()
+
+    return price
 }
 
-fun sell(driver: ChromeDriver, stockCode: String, quantity: Int) {
+// 매도 가격 반환
+fun sell(driver: ChromeDriver, stockCode: String, quantity: Int): Int {
     // 매도 탭 클릭
     driver.findElementById("ui-id-22").click()
 
@@ -217,7 +221,10 @@ fun sell(driver: ChromeDriver, stockCode: String, quantity: Int) {
     driver.findElementById("medo_0100").click()
 
     Thread.sleep(1000L)
+    val price = getPriceWithoutComma(driver.findElementById("price").text)
     driver.findElementById("confirm").click()
+
+    return price
 }
 
 fun getStockQuantityFromDB(stockCode: String, user: String, pw: String): Int {
@@ -241,7 +248,7 @@ fun updateStockQuantityAtDB(stock: Stock, user: String, pw: String): Int {
     val conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/STOCK_TRADING", user, pw)
 
     val sql = "INSERT INTO TB_STOCK VALUES(?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE " +
-            "QUANTITY = ? AND AVERAGE_PRICE = ? AND LAST_TRADING_DATE = ?"
+            "QUANTITY = ?, AVERAGE_PRICE = ?, LAST_TRADING_DATE = ?"
     val stmt = conn.prepareStatement(sql)
     stmt.setString(1, stock.code)
     stmt.setString(2, stock.name)
@@ -291,8 +298,101 @@ fun addFirstStocksInfoToDB(user: String, pw: String) {
     }
 }
 
-fun startAutoTrading(stocks: ArrayList<Stock>) {
+fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, user: String, pw: String) {
+    val dayInMillisecond = 1000 * 60 * 60 * 24L
+    val format = SimpleDateFormat("HH:mm:ss")
+    val openingTime = "09:00:00"
+    val closingTime = "15:20:00"
+    var currentTIme = format.format(System.currentTimeMillis())
+
+    val previousMA = Array(stocks.size, {IntArray(2)})
+
     for (i in 0 until stocks.size) {
-        println("${stocks[i].code} ${stocks[i].name} ${stocks[i].quantity} ${stocks[i].averagePrice} ${stocks[i].lastTradingDate}")
+        val ma20 = getMovingAverage20(stocks[i].code)
+        val ma60 = getMovingAverage60(stocks[i].code)
+        previousMA[i] = intArrayOf(ma20, ma60)
     }
+
+    while (openingTime <= currentTIme && currentTIme < closingTime) {
+        for (i in 0 until stocks.size) {
+            val stock = stocks[i]
+            val previous20 = previousMA[i][0]
+            val previous60 = previousMA[i][1]
+            val current20 = getMovingAverage20(stock.code)
+            val current60 = getMovingAverage60(stock.code)
+            val price = getCurrentPrice(stock.code)
+
+            // buy
+            if (stock.quantity == 0 && previous20 < previous60 && current60 < current20 &&
+                (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 1.0 && price < 100000) {
+                val boughtQuantity = 1
+                val boughtPrice = buy(driver, stock.code, boughtQuantity)
+                stock.averagePrice = (stock.averagePrice * stock.quantity + boughtPrice * boughtQuantity) / (stock.quantity + boughtQuantity)
+                stock.quantity += boughtQuantity
+                stock.lastTradingDate = System.currentTimeMillis()
+
+                updateStockQuantityAtDB(stock, user, pw)
+                addLogToDB(stock, "buy", boughtPrice, boughtQuantity, null, user, pw)
+            }
+
+            // sell
+            if (stock.quantity == 1 && previous60 < previous20 && current20 < current60 &&
+                (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 1.0 &&
+                (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.02) {
+                val soldQuantity = 1
+                val soldPrice = sell(driver, stock.code, soldQuantity)
+                stock.quantity -= soldQuantity
+                if (stock.quantity == 0) stock.averagePrice = 0
+                stock.lastTradingDate = System.currentTimeMillis()
+
+                updateStockQuantityAtDB(stock, user, pw)
+
+                val profit = ((soldPrice - stock.averagePrice) * soldQuantity - soldPrice * soldQuantity * 0.0025).toInt()
+                addLogToDB(stock, "sell", soldPrice, soldQuantity, profit, user, pw)
+            }
+
+            // stop loss
+            if (stock.quantity == 1 && (stock.averagePrice - price) / stock.averagePrice.toDouble() < -0.08) {
+                val soldQuantity = 1
+                val soldPrice = sell(driver, stock.code, soldQuantity)
+                stock.quantity -= soldQuantity
+                if (stock.quantity == 0) stock.averagePrice = 0
+                stock.lastTradingDate = System.currentTimeMillis()
+
+                updateStockQuantityAtDB(stock, user, pw)
+
+                val profit = ((soldPrice - stock.averagePrice) * soldQuantity - soldPrice * soldQuantity * 0.0025).toInt()
+                addLogToDB(stock, "sell", soldPrice, soldQuantity, profit, user, pw)
+            }
+
+            previousMA[i] = intArrayOf(current20, current60)
+        }
+
+        currentTIme = format.format(System.currentTimeMillis())
+    }
+
+    println("장이 종료되었습니다.")
+}
+
+fun addLogToDB(stock: Stock, type: String, price: Int, quantity: Int, profit: Int?, user: String, pw: String): Int {
+    Class.forName("com.mysql.cj.jdbc.Driver")
+    val conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/STOCK_TRADING", user, pw)
+
+    val sql = "INSERT INTO TB_LOG VALUES(?, ?, ?, ?, ?, ?, ?)"
+    val stmt = conn.prepareStatement(sql)
+    stmt.setString(1, stock.code)
+    stmt.setString(2, stock.name)
+    stmt.setString(3, type)
+    stmt.setInt(4, price)
+    stmt.setInt(5, quantity)
+    if (profit != null) stmt.setInt(6, profit)
+    else stmt.setNull(6, java.sql.Types.INTEGER)
+    stmt.setTimestamp(7, Timestamp(stock.lastTradingDate))
+
+    val count = stmt.executeUpdate()
+
+    //if (count == 1) conn.commit() // auto-commit이라 제거
+    conn.close()
+
+    return count
 }
