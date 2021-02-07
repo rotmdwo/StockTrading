@@ -163,6 +163,8 @@ fun accessToMiraeWTS(): ChromeDriver {
     Thread.sleep(1000L)
     driver.findElementById("ui-id-21").click()
 
+    println("매수탭과 매도탭의 계좌를 선택하고 비밀번호를 입력해주세요.")
+
     return driver
 }
 
@@ -258,6 +260,26 @@ fun updateStockQuantityAtDB(stock: Stock, user: String, pw: String): Int {
     return count
 }
 
+fun getAllStocksInfoFromDB(user: String, pw: String): ArrayList<Stock> {
+    Class.forName("com.mysql.cj.jdbc.Driver")
+    val conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/STOCK_TRADING", user, pw)
+
+    val sql = "SELECT * FROM TB_STOCK"
+    val stmt = conn.prepareStatement(sql)
+    val rs = stmt.executeQuery()
+
+    val arrayList = ArrayList<Stock>()
+
+    while (rs.next()) {
+        arrayList.add(Stock(rs.getString("CODE"), rs.getString("NAME"),
+            rs.getInt("QUANTITY"), rs.getInt("AVERAGE_PRICE"), rs.getTimestamp("LAST_TRADING_DATE").time))
+    }
+
+    conn.close()
+
+    return arrayList
+}
+
 fun addFirstStocksInfoToDB(user: String, pw: String) {
     val stocks = getCodesTopKospiKosdaq200()
     var index = 0
@@ -266,5 +288,11 @@ fun addFirstStocksInfoToDB(user: String, pw: String) {
         val count = updateStockQuantityAtDB(stocks[index], user, pw)
 
         if (count == 1) index++
+    }
+}
+
+fun startAutoTrading(stocks: ArrayList<Stock>) {
+    for (i in 0 until stocks.size) {
+        println("${stocks[i].code} ${stocks[i].name} ${stocks[i].quantity} ${stocks[i].averagePrice} ${stocks[i].lastTradingDate}")
     }
 }
