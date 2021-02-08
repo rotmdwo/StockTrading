@@ -186,6 +186,9 @@ fun buy(driver: ChromeDriver, stockCode: String, quantity: Int): Int {
     driver.findElementById("search_num").sendKeys(stockCode)
 
     // 시장가 선택
+    driver.findElementsByName("orderOp_0100")[0].click()
+    Thread.sleep(250L)
+    //driver.findElementById("unitPrice_0100").sendKeys("0")
     driver.findElementsByName("orderOp_0100")[1].click()
 
     // 매수량 설정
@@ -195,10 +198,18 @@ fun buy(driver: ChromeDriver, stockCode: String, quantity: Int): Int {
     driver.findElementById("mesu_0100").click()
 
     // 매수 확인
-    Thread.sleep(1000L)
-    val price = getPriceWithoutComma(driver.findElementById("price").text)
+    Thread.sleep(500L)
     driver.findElementById("confirm").click()
 
+    Thread.sleep(250L)
+    //saveHtmlAsTxt(driver, "html_bought.txt")
+    //println(driver.findElementById("grid_diax0002").text)
+    val price = getPriceWithoutComma(driver.findElementById("grid_diax0002")
+            //.findElements(By.className("pq-grid-cell  pq-align-right low"))[1].text)
+            .findElements(By.xpath("//td[contains(@class, 'pq-grid-cell') and contains(@class, 'pq-align-right') and contains(@class, 'low')]"))[28].text)
+    driver.findElementById("messageBox_1002Ok").click()
+    //saveHtmlAsTxt(driver, "html_bought.txt")
+    //val price = 1
     return price
 }
 
@@ -212,6 +223,9 @@ fun sell(driver: ChromeDriver, stockCode: String, quantity: Int): Int {
     driver.findElementsById("search_num")[1].sendKeys(stockCode)
 
     // 시장가 선택
+    driver.findElementsByName("orderOp1_0100")[0].click()
+    Thread.sleep(250L)
+    //driver.findElementById("unitPrice_0100").sendKeys("0")
     driver.findElementsByName("orderOp1_0100")[1].click()
 
     // 매도량 설정
@@ -219,10 +233,15 @@ fun sell(driver: ChromeDriver, stockCode: String, quantity: Int): Int {
 
     // 매도 버튼 클릭
     driver.findElementById("medo_0100").click()
-
-    Thread.sleep(1000L)
-    val price = getPriceWithoutComma(driver.findElementById("price").text)
+    Thread.sleep(500L)
     driver.findElementById("confirm").click()
+
+    Thread.sleep(250L)
+    //saveHtmlAsTxt(driver, "html_sold.txt")
+    val price = getPriceWithoutComma(driver.findElementById("grid_diax0002")
+            //.findElements(By.className("pq-grid-cell  pq-align-right low"))[1].text)
+            .findElements(By.xpath("//td[contains(@class, 'pq-grid-cell') and contains(@class, 'pq-align-right') and contains(@class, 'low')]"))[28].text)
+    driver.findElementById("messageBox_1002Ok").click()
 
     return price
 }
@@ -333,6 +352,8 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, user: Strin
 
                 updateStockQuantityAtDB(stock, user, pw)
                 addLogToDB(stock, "buy", boughtPrice, boughtQuantity, null, user, pw)
+
+                println("${stock.name}(${stock.code}) 개 당 ${boughtPrice}원에 ${boughtQuantity}주 매수")
             }
 
             // sell
@@ -349,6 +370,8 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, user: Strin
 
                 val profit = ((soldPrice - stock.averagePrice) * soldQuantity - soldPrice * soldQuantity * 0.0025).toInt()
                 addLogToDB(stock, "sell", soldPrice, soldQuantity, profit, user, pw)
+
+                println("${stock.name}(${stock.code}) 개 당 ${soldPrice}원에 ${soldQuantity}주 매도")
             }
 
             // stop loss
@@ -363,6 +386,8 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, user: Strin
 
                 val profit = ((soldPrice - stock.averagePrice) * soldQuantity - soldPrice * soldQuantity * 0.0025).toInt()
                 addLogToDB(stock, "sell", soldPrice, soldQuantity, profit, user, pw)
+
+                println("${stock.name}(${stock.code}) 개 당 ${soldPrice}원에 ${soldQuantity}주 매도")
             }
 
             previousMA[i] = intArrayOf(current20, current60)

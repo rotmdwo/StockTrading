@@ -35,12 +35,14 @@ fun main() {
             "access" -> driver = accessToMiraeWTS()
             "trade" -> {
                 driver?.let {// if not null
+                    println("자동매매 시작")
                     startAutoTrading(it, stocks, id, pw)
                 } ?: run { // if null
                     println("먼저 access 명령어를 통해 WTS에 접속해주세요.")
                 }
             }
-            "sell" -> sell(driver!!, "000660", 1)
+            //"buy" -> println(buy(driver!!, "027740", 1))
+            //"sell" -> println(sell(driver!!, "027740", 1))
             else -> println("지원하지 않는 명령어입니다.")
         }
 
