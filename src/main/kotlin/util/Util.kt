@@ -317,7 +317,8 @@ fun addFirstStocksInfoToDB(user: String, pw: String) {
     }
 }
 
-fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, user: String, pw: String) {
+fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, user: String, pw: String) {
+    var balance = bal
     val dayInMillisecond = 1000 * 60 * 60 * 24L
     val format = SimpleDateFormat("HH:mm:ss")
     val openingTime = "09:00:00"
@@ -343,24 +344,26 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, user: Strin
 
             // buy
             if (stock.quantity == 0 && previous20 < previous60 && current60 < current20 &&
-                (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 1.0 && price < 100000) {
-                val boughtQuantity = 1
+                (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 1.0
+                    && price < 500000 && price < balance && balance < 100000) {
+                val boughtQuantity = if (price > 100000) 1 else 100000 / price
                 val boughtPrice = buy(driver, stock.code, boughtQuantity)
                 stock.averagePrice = (stock.averagePrice * stock.quantity + boughtPrice * boughtQuantity) / (stock.quantity + boughtQuantity)
                 stock.quantity += boughtQuantity
                 stock.lastTradingDate = System.currentTimeMillis()
+                balance -= boughtQuantity * boughtPrice
 
                 updateStockQuantityAtDB(stock, user, pw)
                 addLogToDB(stock, "buy", boughtPrice, boughtQuantity, null, user, pw)
 
-                println("${stock.name}(${stock.code}) 개 당 ${boughtPrice}원에 ${boughtQuantity}주 매수")
+                println("${stock.name}(${stock.code}) 개 당 ${boughtPrice}원에 ${boughtQuantity}주 매수 > 계좌 잔액 ${balance}원")
             }
 
             // sell
-            if (stock.quantity == 1 && previous60 < previous20 && current20 < current60 &&
+            if (stock.quantity > 0 && previous60 < previous20 && current20 < current60 &&
                 (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 1.0 &&
-                (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.02) {
-                val soldQuantity = 1
+                (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.0225) {
+                val soldQuantity = stock.quantity
                 val soldPrice = sell(driver, stock.code, soldQuantity)
                 stock.quantity -= soldQuantity
                 if (stock.quantity == 0) stock.averagePrice = 0
@@ -369,14 +372,15 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, user: Strin
                 updateStockQuantityAtDB(stock, user, pw)
 
                 val profit = ((soldPrice - stock.averagePrice) * soldQuantity - soldPrice * soldQuantity * 0.0025).toInt()
+                balance += profit
                 addLogToDB(stock, "sell", soldPrice, soldQuantity, profit, user, pw)
 
-                println("${stock.name}(${stock.code}) 개 당 ${soldPrice}원에 ${soldQuantity}주 매도")
+                println("${stock.name}(${stock.code}) 개 당 ${soldPrice}원에 ${soldQuantity}주 매도 > 계좌 잔액 ${balance}원")
             }
 
             // stop loss
-            if (stock.quantity == 1 && (stock.averagePrice - price) / stock.averagePrice.toDouble() < -0.08) {
-                val soldQuantity = 1
+            if (stock.quantity > 0 && (stock.averagePrice - price) / stock.averagePrice.toDouble() < -0.08) {
+                val soldQuantity = stock.quantity
                 val soldPrice = sell(driver, stock.code, soldQuantity)
                 stock.quantity -= soldQuantity
                 if (stock.quantity == 0) stock.averagePrice = 0
@@ -385,9 +389,10 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, user: Strin
                 updateStockQuantityAtDB(stock, user, pw)
 
                 val profit = ((soldPrice - stock.averagePrice) * soldQuantity - soldPrice * soldQuantity * 0.0025).toInt()
+                balance += profit
                 addLogToDB(stock, "sell", soldPrice, soldQuantity, profit, user, pw)
 
-                println("${stock.name}(${stock.code}) 개 당 ${soldPrice}원에 ${soldQuantity}주 매도")
+                println("${stock.name}(${stock.code}) 개 당 ${soldPrice}원에 ${soldQuantity}주 매도 > 계좌 잔액 ${balance}원")
             }
 
             previousMA[i] = intArrayOf(current20, current60)

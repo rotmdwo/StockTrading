@@ -26,7 +26,8 @@ fun main() {
         exitProcess(-1)
     }
 
-
+    print("계좌 잔액을 입력해주세요: ")
+    val balance = br.readLine().toInt()
     print("원하는 명령어를 입력해주세요: ")
     var command = br.readLine()
 
@@ -36,7 +37,7 @@ fun main() {
             "trade" -> {
                 driver?.let {// if not null
                     println("자동매매 시작")
-                    startAutoTrading(it, stocks, id, pw)
+                    startAutoTrading(it, stocks, balance, id, pw)
                 } ?: run { // if null
                     println("먼저 access 명령어를 통해 WTS에 접속해주세요.")
                 }
