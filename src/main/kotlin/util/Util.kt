@@ -6,6 +6,7 @@ import org.openqa.selenium.chrome.ChromeDriver
 import org.openqa.selenium.chrome.ChromeOptions
 import stock.Stock
 import java.io.FileWriter
+import java.lang.Math.abs
 import java.sql.DriverManager
 import java.sql.Timestamp
 import java.text.SimpleDateFormat
@@ -341,12 +342,14 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
             val current20 = getMovingAverage20(stock.code)
             val current60 = getMovingAverage60(stock.code)
             val price = getCurrentPrice(stock.code)
-
+             if (abs((current20 - current60)/current60.toDouble()) < 0.01) {
+                 println("${stock.name} 단기MA: ${current20} 중기MA: ${current60}")
+             }
             // buy
             if (stock.quantity == 0 && previous20 < previous60 && current60 < current20 &&
                 (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 1.0
-                    && price < 500000 && price < balance && balance < 100000) {
-                val boughtQuantity = if (price > 100000) 1 else 100000 / price
+                    && price < 500000 && price < balance && 200000 <= balance) {
+                val boughtQuantity = if (price > 200000) 1 else 200000 / price
                 val boughtPrice = buy(driver, stock.code, boughtQuantity)
                 stock.averagePrice = (stock.averagePrice * stock.quantity + boughtPrice * boughtQuantity) / (stock.quantity + boughtQuantity)
                 stock.quantity += boughtQuantity
