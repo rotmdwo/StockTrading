@@ -89,6 +89,18 @@ fun getMovingAverage120(stockCode: String): Int {
     return getMovingAverage(stockCode, 12)
 }
 
+fun getMovingAverageOfLastDay20(stockCode: String): Int {
+    return getMovingAverageOfLastDay(stockCode, 2)
+}
+
+fun getMovingAverageOfLastDay60(stockCode: String): Int {
+    return getMovingAverageOfLastDay(stockCode, 6)
+}
+
+fun getMovingAverageOfLastDay120(stockCode: String): Int {
+    return getMovingAverageOfLastDay(stockCode, 12)
+}
+
 fun getMovingAverage(stockCode: String, days10: Int): Int {
     var url = "https://finance.naver.com/item/sise_day.nhn?code=$stockCode&page=1"
     var sum = 0
@@ -107,12 +119,47 @@ fun getMovingAverage(stockCode: String, days10: Int): Int {
                 continue
             }
 
-            if ((j - numOf0_bias) % 5 == 0) { // 종가만 거르기
+            if ((j - numOf0_bias) % 5 == 0) { // 종가만 추출
                 sum += getPriceWithoutComma(elems[j].text())
                 num++
             }
         }
     }
+
+    return sum / num
+}
+
+fun getMovingAverageOfLastDay(stockCode: String, days10: Int): Int {
+    var url = "https://finance.naver.com/item/sise_day.nhn?code=$stockCode&page=1"
+    var sum = 0
+    var num = 0
+
+    for (i in 1 .. days10) {
+        url = url.dropLast(url.substring(url.lastIndexOf('=') + 1).length) + i // url 구성
+        val document = Jsoup.connect(url).get()
+        val elems = document.getElementsByClass("tah p11") // 숫자들을 가진 태그
+
+        var numOf0_bias = 0 // 전일비 차가 0이면 <img> 태그가 아닌 <span> 태그로 나와 계산 잘못 되는 것 방지
+
+        for (j in 0 until elems.size) {
+            if (elems[j].text() == "0") { // 전일비 0인 것 거름
+                numOf0_bias++
+                continue
+            }
+
+            if ((j - numOf0_bias) % 5 == 0 && !(i == 1 && j == 0)) { // 종가만 추출, 오늘 가격 제외
+                sum += getPriceWithoutComma(elems[j].text())
+                num++
+            }
+        }
+    }
+
+    // 마지막 날 가격 추가
+    url = url.dropLast(url.substring(url.lastIndexOf('=') + 1).length) + (days10 + 1)
+    val document = Jsoup.connect(url).get()
+    val elems = document.getElementsByClass("tah p11") // 숫자들을 가진 태그
+    sum += getPriceWithoutComma(elems[0].text())
+    num++
 
     return sum / num
 }
@@ -202,15 +249,14 @@ fun buy(driver: ChromeDriver, stockCode: String, quantity: Int): Int {
     Thread.sleep(500L)
     driver.findElementById("confirm").click()
 
-    Thread.sleep(250L)
-    //saveHtmlAsTxt(driver, "html_bought.txt")
+    Thread.sleep(500L)
+    saveHtmlAsTxt(driver, "html_bought.txt")
     //println(driver.findElementById("grid_diax0002").text)
     val price = getPriceWithoutComma(driver.findElementById("grid_diax0002")
-            //.findElements(By.className("pq-grid-cell  pq-align-right low"))[1].text)
-            .findElements(By.xpath("//td[contains(@class, 'pq-grid-cell') and contains(@class, 'pq-align-right') and contains(@class, 'low')]"))[28].text)
+            .findElements(By.className("pq-grid-cell"))[5].text)
+            //.findElements(By.xpath("//td[contains(@class, 'pq-grid-cell') and contains(@class, 'pq-align-right') and contains(@class, 'low')]"))[28].text)
     driver.findElementById("messageBox_1002Ok").click()
-    //saveHtmlAsTxt(driver, "html_bought.txt")
-    //val price = 1
+
     return price
 }
 
@@ -237,11 +283,11 @@ fun sell(driver: ChromeDriver, stockCode: String, quantity: Int): Int {
     Thread.sleep(500L)
     driver.findElementById("confirm").click()
 
-    Thread.sleep(250L)
-    //saveHtmlAsTxt(driver, "html_sold.txt")
+    Thread.sleep(500L)
+    saveHtmlAsTxt(driver, "html_sold.txt")
     val price = getPriceWithoutComma(driver.findElementById("grid_diax0002")
-            //.findElements(By.className("pq-grid-cell  pq-align-right low"))[1].text)
-            .findElements(By.xpath("//td[contains(@class, 'pq-grid-cell') and contains(@class, 'pq-align-right') and contains(@class, 'low')]"))[28].text)
+            .findElements(By.className("pq-grid-cell"))[5].text)
+            //.findElements(By.xpath("//td[contains(@class, 'pq-grid-cell') and contains(@class, 'pq-align-right') and contains(@class, 'low')]"))[28].text)
     driver.findElementById("messageBox_1002Ok").click()
 
     return price
@@ -324,28 +370,36 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
     val format = SimpleDateFormat("HH:mm:ss")
     val openingTime = "09:00:00"
     val closingTime = "15:20:00"
-    var currentTIme = format.format(System.currentTimeMillis())
+    var currentTime = format.format(System.currentTimeMillis())
 
-    val previousMA = Array(stocks.size, {IntArray(2)})
+    val lastDayMA = Array(stocks.size, {IntArray(2)})
 
     for (i in 0 until stocks.size) {
-        val ma20 = getMovingAverage20(stocks[i].code)
-        val ma60 = getMovingAverage60(stocks[i].code)
-        previousMA[i] = intArrayOf(ma20, ma60)
+        val lastDayMA20 = getMovingAverageOfLastDay20(stocks[i].code)
+        val lastDayMA60 = getMovingAverageOfLastDay60(stocks[i].code)
+        lastDayMA[i] = intArrayOf(lastDayMA20, lastDayMA60)
     }
 
-    while (openingTime <= currentTIme && currentTIme < closingTime) {
+    // 개장전 대기
+    while (currentTime < openingTime) {
+        Thread.sleep(500L)
+        currentTime = format.format(System.currentTimeMillis())
+    }
+
+    while (openingTime <= currentTime && currentTime < closingTime) {
         for (i in 0 until stocks.size) {
             val stock = stocks[i]
-            val previous20 = previousMA[i][0]
-            val previous60 = previousMA[i][1]
+            val previous20 = lastDayMA[i][0]
+            val previous60 = lastDayMA[i][1]
             val current20 = getMovingAverage20(stock.code)
             val current60 = getMovingAverage60(stock.code)
             val price = getCurrentPrice(stock.code)
-             if (abs((current20 - current60)/current60.toDouble()) < 0.01) {
-                 println("${stock.name} 단기MA: ${current20} 중기MA: ${current60}")
-             }
-            // buy
+
+            if (abs((current20 - current60)/current60.toDouble()) < 0.01) {
+                println("${stock.name} 단기MA: ${current20} 중기MA: ${current60}")
+            }
+
+            // buy - 골든크로스
             if (stock.quantity == 0 && previous20 < previous60 && current60 < current20 &&
                 (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 1.0
                     && price < 500000 && price < balance && 200000 <= balance) {
@@ -361,9 +415,8 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
 
                 println("${stock.name}(${stock.code}) 개 당 ${boughtPrice}원에 ${boughtQuantity}주 매수 > 계좌 잔액 ${balance}원")
             }
-
-            // sell
-            if (stock.quantity > 0 && previous60 < previous20 && current20 < current60 &&
+            // sell - 데드크로스
+            else if (stock.quantity > 0 && previous60 < previous20 && current20 < current60 &&
                 (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 1.0 &&
                 (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.0225) {
                 val soldQuantity = stock.quantity
@@ -380,9 +433,8 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
 
                 println("${stock.name}(${stock.code}) 개 당 ${soldPrice}원에 ${soldQuantity}주 매도 > 계좌 잔액 ${balance}원")
             }
-
-            // stop loss
-            if (stock.quantity > 0 && (stock.averagePrice - price) / stock.averagePrice.toDouble() < -0.08) {
+            // stop loss : -8% 하락
+            else if (stock.quantity > 0 && (stock.averagePrice - price) / stock.averagePrice.toDouble() < -0.08) {
                 val soldQuantity = stock.quantity
                 val soldPrice = sell(driver, stock.code, soldQuantity)
                 stock.quantity -= soldQuantity
@@ -397,11 +449,9 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
 
                 println("${stock.name}(${stock.code}) 개 당 ${soldPrice}원에 ${soldQuantity}주 매도 > 계좌 잔액 ${balance}원")
             }
-
-            previousMA[i] = intArrayOf(current20, current60)
         }
 
-        currentTIme = format.format(System.currentTimeMillis())
+        currentTime = format.format(System.currentTimeMillis())
     }
 
     println("장이 종료되었습니다.")
