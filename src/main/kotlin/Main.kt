@@ -3,6 +3,7 @@ import stock.Stock
 import util.*
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.lang.Exception
 import java.sql.*
 import java.util.*
 import kotlin.system.exitProcess
@@ -31,25 +32,31 @@ fun main() {
     print("원하는 명령어를 입력해주세요: ")
     var command = br.readLine()
 
-    while (command != "quit") {
-        when (command) {
-            "access" -> driver = accessToMiraeWTS()
-            "trade" -> {
-                driver?.let {// if not null
-                    println("자동매매 시작")
-                    startAutoTrading(it, stocks, balance, id, pw)
-                } ?: run { // if null
-                    println("먼저 access 명령어를 통해 WTS에 접속해주세요.")
+    try {
+        while (command != "quit") {
+            when (command) {
+                "test" -> test(driver!!)
+                "access" -> driver = accessToMiraeWTS()
+                "trade" -> {
+                    driver?.let {// if not null
+                        println("자동매매 시작")
+                        startAutoTrading(it, stocks, balance, id, pw)
+                    } ?: run { // if null
+                        println("먼저 access 명령어를 통해 WTS에 접속해주세요.")
+                    }
                 }
+                //"buy" -> println(buy(driver!!, "027740", 1))
+                //"sell" -> println(sell(driver!!, "027740", 1))
+                else -> println("지원하지 않는 명령어입니다.")
             }
-            //"buy" -> println(buy(driver!!, "027740", 1))
-            //"sell" -> println(sell(driver!!, "027740", 1))
-            else -> println("지원하지 않는 명령어입니다.")
-        }
 
-        print("\n원하는 명령어를 입력해주세요: ")
-        command = br.readLine()
+            print("\n원하는 명령어를 입력해주세요: ")
+            command = br.readLine()
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
     }
+
 
     println("프로그램 종료")
 }

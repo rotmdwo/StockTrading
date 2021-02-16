@@ -4,6 +4,8 @@ import org.jsoup.Jsoup
 import org.openqa.selenium.By
 import org.openqa.selenium.chrome.ChromeDriver
 import org.openqa.selenium.chrome.ChromeOptions
+import org.openqa.selenium.support.ui.ExpectedConditions
+import org.openqa.selenium.support.ui.WebDriverWait
 import stock.Stock
 import java.io.FileWriter
 import java.lang.Math.abs
@@ -203,11 +205,13 @@ fun accessToMiraeWTS(): ChromeDriver {
     // frame 선택
     driver.switchTo().frame(driver.findElementById("contentframe"))
     // 로딩 대기 후 주식종합 탭 클릭
-    Thread.sleep(3000L)
+    //Thread.sleep(3000L)
+    waitForDisplayingById(driver, "mdiMenu_mdi0100")
     driver.findElementById("mdiMenu_mdi0100").click()
 
     // 로딩 대기 후 매수 탭 클릭
-    Thread.sleep(1000L)
+    //Thread.sleep(1000L)
+    waitForDisplayingById(driver, "ui-id-21")
     driver.findElementById("ui-id-21").click()
 
     println("매수탭과 매도탭의 계좌를 선택하고 비밀번호를 입력해주세요.")
@@ -224,13 +228,20 @@ fun saveHtmlAsTxt(driver: ChromeDriver, path: String) {
     fWriter.close()
 }
 
+fun test(driver: ChromeDriver) {
+    waitForDisplayingById(driver, "ui-id-21")
+    driver.findElementById("ui-id-21").click()
+}
+
 // 매수 가격 반환
 fun buy(driver: ChromeDriver, stockCode: String, quantity: Int): Int {
     // 매수 탭 클릭
+    waitForDisplayingById(driver, "ui-id-21")
     driver.findElementById("ui-id-21").click()
 
     // 종목코드 입력
-    Thread.sleep(2000L)
+    //Thread.sleep(2000L)
+    waitForDisplayingById(driver, "search_num")
     driver.findElementById("search_num").sendKeys(stockCode)
 
     // 시장가 선택
@@ -246,15 +257,19 @@ fun buy(driver: ChromeDriver, stockCode: String, quantity: Int): Int {
     driver.findElementById("mesu_0100").click()
 
     // 매수 확인
-    Thread.sleep(500L)
+    //Thread.sleep(500L)
+    waitForDisplayingById(driver, "confirm")
     driver.findElementById("confirm").click()
 
-    Thread.sleep(500L)
+    //Thread.sleep(500L)
+    waitForDisplayingById(driver, "grid_diax0002")
     saveHtmlAsTxt(driver, "html_bought.txt")
     //println(driver.findElementById("grid_diax0002").text)
     val price = getPriceWithoutComma(driver.findElementById("grid_diax0002")
             .findElements(By.className("pq-grid-cell"))[5].text)
             //.findElements(By.xpath("//td[contains(@class, 'pq-grid-cell') and contains(@class, 'pq-align-right') and contains(@class, 'low')]"))[28].text)
+
+    waitForDisplayingById(driver, "messageBox_1002Ok")
     driver.findElementById("messageBox_1002Ok").click()
 
     return price
@@ -263,10 +278,12 @@ fun buy(driver: ChromeDriver, stockCode: String, quantity: Int): Int {
 // 매도 가격 반환
 fun sell(driver: ChromeDriver, stockCode: String, quantity: Int): Int {
     // 매도 탭 클릭
+    waitForDisplayingById(driver, "ui-id-22")
     driver.findElementById("ui-id-22").click()
 
     // 종목코드 입력
-    Thread.sleep(2000L)
+    //Thread.sleep(2000L)
+    waitForDisplayingById(driver, "search_num")
     driver.findElementsById("search_num")[1].sendKeys(stockCode)
 
     // 시장가 선택
@@ -280,14 +297,18 @@ fun sell(driver: ChromeDriver, stockCode: String, quantity: Int): Int {
 
     // 매도 버튼 클릭
     driver.findElementById("medo_0100").click()
-    Thread.sleep(500L)
+    //Thread.sleep(500L)
+    waitForDisplayingById(driver, "confirm")
     driver.findElementById("confirm").click()
 
-    Thread.sleep(500L)
+    //Thread.sleep(500L)
+    waitForDisplayingById(driver, "grid_diax0002")
     saveHtmlAsTxt(driver, "html_sold.txt")
     val price = getPriceWithoutComma(driver.findElementById("grid_diax0002")
             .findElements(By.className("pq-grid-cell"))[5].text)
             //.findElements(By.xpath("//td[contains(@class, 'pq-grid-cell') and contains(@class, 'pq-align-right') and contains(@class, 'low')]"))[28].text)
+
+    waitForDisplayingById(driver, "messageBox_1002Ok")
     driver.findElementById("messageBox_1002Ok").click()
 
     return price
@@ -402,8 +423,8 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
             // buy - 골든크로스
             if (stock.quantity == 0 && previous20 < previous60 && current60 < current20 &&
                 (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 1.0
-                    && price < 500000 && price < balance && 200000 <= balance) {
-                val boughtQuantity = if (price > 200000) 1 else 200000 / price
+                    && price < 500000 && price < balance && 300000 <= balance) {
+                val boughtQuantity = if (price > 300000) 1 else 300000 / price
                 val boughtPrice = buy(driver, stock.code, boughtQuantity)
                 stock.averagePrice = (stock.averagePrice * stock.quantity + boughtPrice * boughtQuantity) / (stock.quantity + boughtQuantity)
                 stock.quantity += boughtQuantity
@@ -478,4 +499,8 @@ fun addLogToDB(stock: Stock, type: String, price: Int, quantity: Int, profit: In
     conn.close()
 
     return count
+}
+
+fun waitForDisplayingById(driver: ChromeDriver, id: String) {
+    WebDriverWait(driver, 60).until(ExpectedConditions.presenceOfElementLocated(By.id(id)))
 }
