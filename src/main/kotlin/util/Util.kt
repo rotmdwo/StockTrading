@@ -205,8 +205,8 @@ fun accessToMiraeWTS(): ChromeDriver {
     // frame 선택
     driver.switchTo().frame(driver.findElementById("contentframe"))
     // 로딩 대기 후 주식종합 탭 클릭
-    //Thread.sleep(3000L)
-    waitForDisplayingById(driver, "mdiMenu_mdi0100")
+    Thread.sleep(3000L)
+    //waitForDisplayingById(driver, "mdiMenu_mdi0100")
     driver.findElementById("mdiMenu_mdi0100").click()
 
     // 로딩 대기 후 매수 탭 클릭
@@ -228,9 +228,27 @@ fun saveHtmlAsTxt(driver: ChromeDriver, path: String) {
     fWriter.close()
 }
 
-fun test(driver: ChromeDriver) {
-    waitForDisplayingById(driver, "ui-id-21")
-    driver.findElementById("ui-id-21").click()
+fun test() {
+    System.setProperty("webdriver.chrome.driver", "/Users/sungjaelee/Downloads/chromedriver")
+    val options = ChromeOptions()
+    options.setCapability("ignoreProtectedModeSettings", true)
+    val driver = ChromeDriver(options)
+    val url = "https://www.naver.com/"
+
+    // 메인 페이지 접속
+    driver.get(url)
+
+    //Thread.sleep(3000L)
+    //driver.findElementByXPath("//button[ends-with(@id, 'cn_btn')]").click()
+    val buttons = driver.findElementsByTagName("button")
+    for (button in buttons) {
+        val id = button.getAttribute("id")
+
+        if (id.contains("ch_btn")) {
+            button.click()
+            break
+        }
+    }
 }
 
 // 매수 가격 반환
@@ -269,8 +287,18 @@ fun buy(driver: ChromeDriver, stockCode: String, quantity: Int): Int {
             .findElements(By.className("pq-grid-cell"))[5].text)
             //.findElements(By.xpath("//td[contains(@class, 'pq-grid-cell') and contains(@class, 'pq-align-right') and contains(@class, 'low')]"))[28].text)
 
-    waitForDisplayingById(driver, "messageBox_1002Ok")
-    driver.findElementById("messageBox_1002Ok").click()
+    //waitForDisplayingById(driver, "messageBox_1002Ok")
+    //driver.findElementById("messageBox_1002Ok").click()
+    // 확인버튼의 랜덤 id 해결책
+    val buttons = driver.findElementsByTagName("button")
+    for (button in buttons) {
+        val id = button.getAttribute("id")
+
+        if (id.contains("Ok")) {
+            button.click()
+            break
+        }
+    }
 
     return price
 }
@@ -308,8 +336,17 @@ fun sell(driver: ChromeDriver, stockCode: String, quantity: Int): Int {
             .findElements(By.className("pq-grid-cell"))[5].text)
             //.findElements(By.xpath("//td[contains(@class, 'pq-grid-cell') and contains(@class, 'pq-align-right') and contains(@class, 'low')]"))[28].text)
 
-    waitForDisplayingById(driver, "messageBox_1002Ok")
-    driver.findElementById("messageBox_1002Ok").click()
+    //waitForDisplayingById(driver, "messageBox_1002Ok")
+    //driver.findElementById("messageBox_1002Ok").click()
+    val buttons = driver.findElementsByTagName("button")
+    for (button in buttons) {
+        val id = button.getAttribute("id")
+
+        if (id.contains("Ok")) {
+            button.click()
+            break
+        }
+    }
 
     return price
 }

@@ -35,7 +35,7 @@ fun main() {
     try {
         while (command != "quit") {
             when (command) {
-                "test" -> test(driver!!)
+                "test" -> test()
                 "access" -> driver = accessToMiraeWTS()
                 "trade" -> {
                     driver?.let {// if not null
