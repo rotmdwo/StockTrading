@@ -220,6 +220,14 @@ fun accessToMiraeWTS(): ChromeDriver {
     return driver
 }
 
+fun getBalance(driver: ChromeDriver): Int {
+    Thread.sleep(2000L)
+    driver.findElementById("ui-id-11").click()
+    Thread.sleep(3000L)
+    saveHtmlAsTxt(driver, "deposit_tab.txt")
+
+    return getPriceWithoutComma(driver.findElementsByTagName("td")[158].text)
+}
 // HTML을 텍스트파일로 저장
 fun saveHtmlAsTxt(driver: ChromeDriver, path: String) {
     // ex) path = "html.txt"
@@ -229,27 +237,10 @@ fun saveHtmlAsTxt(driver: ChromeDriver, path: String) {
     fWriter.close()
 }
 
-fun test() {
-    System.setProperty("webdriver.chrome.driver", "/Users/sungjaelee/Downloads/chromedriver")
-    val options = ChromeOptions()
-    options.setCapability("ignoreProtectedModeSettings", true)
-    val driver = ChromeDriver(options)
-    val url = "https://www.naver.com/"
-
-    // 메인 페이지 접속
-    driver.get(url)
-
-    //Thread.sleep(3000L)
-    //driver.findElementByXPath("//button[ends-with(@id, 'cn_btn')]").click()
-    val buttons = driver.findElementsByTagName("button")
-    for (button in buttons) {
-        val id = button.getAttribute("id")
-
-        if (id.contains("ch_btn")) {
-            button.click()
-            break
-        }
-    }
+fun test(driver: ChromeDriver) {
+    driver.findElementById("ui-id-11").click()
+    Thread.sleep(3000L)
+    saveHtmlAsTxt(driver, "deposit_tab.txt")
 }
 
 // 매수 가격 반환

@@ -27,16 +27,21 @@ fun main() {
         exitProcess(-1)
     }
 
-    print("계좌 잔액을 입력해주세요: ")
-    val balance = br.readLine().toInt()
+    //print("계좌 잔액을 입력해주세요: ")
+    //val balance = br.readLine().toInt()
+    var balance = 0
     print("원하는 명령어를 입력해주세요: ")
     var command = br.readLine()
 
     try {
         while (command != "quit") {
             when (command) {
-                "test" -> test()
-                "access" -> driver = accessToMiraeWTS()
+                "test" -> test(driver!!)
+                "access" -> {
+                    driver = accessToMiraeWTS()
+                    balance = getBalance(driver!!)
+                    println("현재 계좌잔액은 ${balance}원 입니다.")
+                }
                 "trade" -> {
                     driver?.let {// if not null
                         println("자동매매 시작")
