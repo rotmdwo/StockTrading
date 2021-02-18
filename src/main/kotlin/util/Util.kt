@@ -525,6 +525,25 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
                 stock.lastSoldPoint = -8.0
                 updateDbAfterSell(stock, soldQuantity, soldPrice)
             }
+            // sell : 오래된 주식들 매도
+            else if (stock.quantity > 0 && (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 14.0) {
+                if (stock.lastSoldPoint == 0.0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.0225) {
+                    val soldQuantity = (stock.quantity * 1 / 3).coerceAtLeast(1)
+                    val soldPrice = sell(driver, stock.code, soldQuantity)
+                    stock.lastSoldPoint = 4.5
+                    updateDbAfterSell(stock, soldQuantity, soldPrice)
+                } else if (stock.lastSoldPoint == 4.5 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.045) {
+                    val soldQuantity = (stock.quantity * 1 / 2).coerceAtLeast(1)
+                    val soldPrice = sell(driver, stock.code, soldQuantity)
+                    stock.lastSoldPoint = 9.0
+                    updateDbAfterSell(stock, soldQuantity, soldPrice)
+                } else if (stock.lastSoldPoint == 9.0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.045) {
+                    val soldQuantity = stock.quantity * 1
+                    val soldPrice = sell(driver, stock.code, soldQuantity)
+                    stock.lastSoldPoint = 13.5
+                    updateDbAfterSell(stock, soldQuantity, soldPrice)
+                }
+            }
         }
 
         currentTime = format.format(System.currentTimeMillis())
