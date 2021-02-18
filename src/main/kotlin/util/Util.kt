@@ -206,7 +206,7 @@ fun accessToMiraeWTS(): ChromeDriver {
     // frame 선택
     driver.switchTo().frame(driver.findElementById("contentframe"))
     // 로딩 대기 후 주식종합 탭 클릭
-    Thread.sleep(3000L)
+    Thread.sleep(4000L)
     //waitForDisplayingById(driver, "mdiMenu_mdi0100")
     driver.findElementById("mdiMenu_mdi0100").click()
 
@@ -282,6 +282,7 @@ fun buy(driver: ChromeDriver, stockCode: String, quantity: Int): Int {
     //waitForDisplayingById(driver, "messageBox_1002Ok")
     //driver.findElementById("messageBox_1002Ok").click()
     // 확인버튼의 랜덤 id 해결책
+    Thread.sleep(3000L)
     val buttons = driver.findElementsByTagName("button")
     for (button in buttons) {
         val id = button.getAttribute("id")
@@ -441,14 +442,14 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
 
     // nested function
     fun updateDbAfterSell(stock: Stock, soldQuantity: Int, soldPrice: Int) {
+        val profit = ((soldPrice - stock.averagePrice) * soldQuantity - soldPrice * soldQuantity * 0.0025).toInt()
+        balance += profit
+
         stock.quantity -= soldQuantity
         if (stock.quantity == 0) stock.averagePrice = 0
         stock.lastTradingDate = System.currentTimeMillis()
 
         updateStockQuantityAtDB(stock, user, pw)
-
-        val profit = ((soldPrice - stock.averagePrice) * soldQuantity - soldPrice * soldQuantity * 0.0025).toInt()
-        balance += profit
         addLogToDB(stock, "sell", soldPrice, soldQuantity, profit, user, pw)
 
         println("${stock.name}(${stock.code}) 개 당 ${soldPrice}원에 ${soldQuantity}주 매도 > 계좌 잔액 ${balance}원")
@@ -518,7 +519,7 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
                 updateDbAfterSell(stock, soldQuantity, soldPrice)
             }
             // stop loss : -8% 하락
-            else if (stock.quantity > 0 && (stock.averagePrice - price) / stock.averagePrice.toDouble() < -0.08) {
+            else if (stock.quantity > 0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() < -0.08) {
                 val soldQuantity = stock.quantity
                 val soldPrice = sell(driver, stock.code, soldQuantity)
                 stock.lastSoldPoint = -8.0
