@@ -68,8 +68,16 @@ fun getCodesTopKospiKosdaq200(): ArrayList<Stock> {
     return arrayList
 }
 
+fun getMovingAverage10(stockCode: String): Int {
+    return getMovingAverage(stockCode, 1)
+}
+
 fun getMovingAverage20(stockCode: String): Int {
     return getMovingAverage(stockCode, 2)
+}
+
+fun getMovingAverage30(stockCode: String): Int {
+    return getMovingAverage(stockCode, 3)
 }
 
 fun getMovingAverage60(stockCode: String): Int {
@@ -80,8 +88,16 @@ fun getMovingAverage120(stockCode: String): Int {
     return getMovingAverage(stockCode, 12)
 }
 
+fun getMovingAverageOfLastDay10(stockCode: String): Int {
+    return getMovingAverageOfLastDay(stockCode, 1)
+}
+
 fun getMovingAverageOfLastDay20(stockCode: String): Int {
     return getMovingAverageOfLastDay(stockCode, 2)
+}
+
+fun getMovingAverageOfLastDay30(stockCode: String): Int {
+    return getMovingAverageOfLastDay(stockCode, 3)
 }
 
 fun getMovingAverageOfLastDay60(stockCode: String): Int {

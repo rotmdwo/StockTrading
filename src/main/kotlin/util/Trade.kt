@@ -246,8 +246,8 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
     val lastDayMA = Array(stocks.size, {IntArray(2)})
 
     for (i in 0 until stocks.size) {
-        val lastDayMA20 = getMovingAverageOfLastDay20(stocks[i].code)
-        val lastDayMA60 = getMovingAverageOfLastDay60(stocks[i].code)
+        val lastDayMA20 = getMovingAverageOfLastDay10(stocks[i].code)
+        val lastDayMA60 = getMovingAverageOfLastDay30(stocks[i].code)
         lastDayMA[i] = intArrayOf(lastDayMA20, lastDayMA60)
     }
 
@@ -279,8 +279,8 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
             val stock = stocks[i]
             val previous20 = lastDayMA[i][0]
             val previous60 = lastDayMA[i][1]
-            val current20 = getMovingAverage20(stock.code)
-            val current60 = getMovingAverage60(stock.code)
+            val current20 = getMovingAverage10(stock.code)
+            val current60 = getMovingAverage30(stock.code)
             val price = getCurrentPrice(stock.code)
 
             if (abs((current20 - current60)/current60.toDouble()) < 0.01) {
