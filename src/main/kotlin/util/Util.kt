@@ -238,9 +238,54 @@ fun saveHtmlAsTxt(driver: ChromeDriver, path: String) {
 }
 
 fun test(driver: ChromeDriver) {
-    driver.findElementById("ui-id-11").click()
-    Thread.sleep(3000L)
-    saveHtmlAsTxt(driver, "deposit_tab.txt")
+    // 매수 탭 클릭
+    waitForDisplayingById(driver, "ui-id-21")
+    driver.findElementById("ui-id-21").click()
+
+    // 종목코드 입력
+    //Thread.sleep(2000L)
+    waitForDisplayingById(driver, "search_num")
+    driver.findElementById("search_num").sendKeys("027740")
+
+    // 시장가 선택
+    driver.findElementsByName("orderOp_0100")[0].click()
+    Thread.sleep(250L)
+    //driver.findElementById("unitPrice_0100").sendKeys("0")
+    driver.findElementsByName("orderOp_0100")[1].click()
+
+    // 매수량 설정
+    driver.findElementById("mesuQty_0100").sendKeys("1")
+
+    // 매수 버튼 클릭
+    driver.findElementById("mesu_0100").click()
+
+    // 매수 확인
+    //Thread.sleep(500L)
+    waitForDisplayingById(driver, "confirm")
+    driver.findElementById("confirm").click()
+
+    //Thread.sleep(500L)
+    waitForDisplayingById(driver, "grid_diax0002")
+    saveHtmlAsTxt(driver, "html_bought.txt")
+    //println(driver.findElementById("grid_diax0002").text)
+    val price = getPriceWithoutComma(driver.findElementById("grid_diax0002")
+            .findElements(By.className("pq-grid-cell"))[5].text)
+    //.findElements(By.xpath("//td[contains(@class, 'pq-grid-cell') and contains(@class, 'pq-align-right') and contains(@class, 'low')]"))[28].text)
+
+    //waitForDisplayingById(driver, "messageBox_1002Ok")
+    //driver.findElementById("messageBox_1002Ok").click()
+    // 확인버튼의 랜덤 id 해결책
+    //Thread.sleep(3000L)
+    val buttons = driver.findElementsByTagName("button")
+    for (button in buttons) {
+        val id = button.getAttribute("id")
+
+        if (id.contains("Ok")) {
+            WebDriverWait(driver, 60).until(ExpectedConditions.elementToBeClickable(By.id(id)))
+            button.click()
+            break
+        }
+    }
 }
 
 // 매수 가격 반환
@@ -282,12 +327,12 @@ fun buy(driver: ChromeDriver, stockCode: String, quantity: Int): Int {
     //waitForDisplayingById(driver, "messageBox_1002Ok")
     //driver.findElementById("messageBox_1002Ok").click()
     // 확인버튼의 랜덤 id 해결책
-    Thread.sleep(3000L)
     val buttons = driver.findElementsByTagName("button")
     for (button in buttons) {
         val id = button.getAttribute("id")
 
         if (id.contains("Ok")) {
+            waitForClickableById(driver, id)
             button.click()
             break
         }
@@ -336,6 +381,7 @@ fun sell(driver: ChromeDriver, stockCode: String, quantity: Int): Int {
         val id = button.getAttribute("id")
 
         if (id.contains("Ok")) {
+            waitForClickableById(driver, id)
             button.click()
             break
         }
@@ -577,4 +623,8 @@ fun addLogToDB(stock: Stock, type: String, price: Int, quantity: Int, profit: In
 
 fun waitForDisplayingById(driver: ChromeDriver, id: String) {
     WebDriverWait(driver, 60).until(ExpectedConditions.presenceOfElementLocated(By.id(id)))
+}
+
+fun waitForClickableById(driver: ChromeDriver, id: String) {
+    WebDriverWait(driver, 60).until(ExpectedConditions.elementToBeClickable(By.id(id)))
 }
