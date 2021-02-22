@@ -1,6 +1,5 @@
 package util
 
-import org.jsoup.Jsoup
 import org.openqa.selenium.By
 import org.openqa.selenium.chrome.ChromeDriver
 import org.openqa.selenium.chrome.ChromeOptions
@@ -9,163 +8,8 @@ import org.openqa.selenium.support.ui.WebDriverWait
 import stock.Stock
 import java.io.FileWriter
 import java.lang.Math.abs
-import java.lang.Math.max
-import java.sql.DriverManager
-import java.sql.Timestamp
 import java.text.SimpleDateFormat
 import kotlin.collections.ArrayList
-
-fun getPriceWithoutComma(price: String): Int { // 숫자 사이에 ',' 들어 있는 String을 숫자로 만들어 줌
-    return price.replace(",","").toInt()
-}
-
-fun getCurrentPrice(stockCode: String): Int {
-    val url = "https://finance.naver.com/item/main.nhn?code=${stockCode}"
-    val document = Jsoup.connect(url).get()
-    val dds = document.getElementsByTag("dd")
-
-    for (i in 0 until dds.size) {
-        val elem = dds[i]
-        val text = elem.text()
-
-        if (text.substring(0, 3) == "현재가") {
-            return getPriceWithoutComma(text.substring(4, text.indexOf(' ', 4)))
-        }
-    }
-
-    return -1
-}
-
-fun getCodesTop50(): ArrayList<String> { // 시가총액 상위 50개 종목의 코드 반환
-    val url = "https://finance.naver.com/sise/sise_market_sum.nhn"
-    val document = Jsoup.connect(url).get()
-    val tltles = document.getElementsByClass("tltle") // 종목정보 가진 클래스
-
-    val arrayList = ArrayList<String>(50)
-
-    for (i in 0 until tltles.size) {
-        val elem = tltles[i]
-        val company = elem.text()
-        val href = elem.attr("href")
-        val code = href.substring(href.indexOf('=') + 1)
-
-        arrayList.add(code)
-    }
-
-    return arrayList
-}
-
-fun getCodesTopKospiKosdaq200(): ArrayList<Stock> {
-    val baseUrl = "https://finance.naver.com/sise/sise_market_sum.nhn?"
-    val arrayList = ArrayList<Stock>(400)
-
-    for (sosok in 0 .. 1) { // KOSPI: sosok 0, KOSDAQ: sosok 1
-        for (page in 1 .. 4) {
-            val url = baseUrl + "sosok=$sosok&page=$page"
-            val document = Jsoup.connect(url).get()
-            val tltles = document.getElementsByClass("tltle") // 종목정보 가진 클래스
-
-            for (i in 0 until tltles.size) {
-                val elem = tltles[i]
-                val company = elem.text()
-                val href = elem.attr("href")
-                val code = href.substring(href.indexOf('=') + 1)
-
-                val stock = Stock(code, company, 0, 0, 0.0, System.currentTimeMillis())
-                arrayList.add(stock)
-            }
-        }
-    }
-
-    return arrayList
-}
-
-fun getMovingAverage20(stockCode: String): Int {
-    return getMovingAverage(stockCode, 2)
-}
-
-fun getMovingAverage60(stockCode: String): Int {
-    return getMovingAverage(stockCode, 6)
-}
-
-fun getMovingAverage120(stockCode: String): Int {
-    return getMovingAverage(stockCode, 12)
-}
-
-fun getMovingAverageOfLastDay20(stockCode: String): Int {
-    return getMovingAverageOfLastDay(stockCode, 2)
-}
-
-fun getMovingAverageOfLastDay60(stockCode: String): Int {
-    return getMovingAverageOfLastDay(stockCode, 6)
-}
-
-fun getMovingAverageOfLastDay120(stockCode: String): Int {
-    return getMovingAverageOfLastDay(stockCode, 12)
-}
-
-fun getMovingAverage(stockCode: String, days10: Int): Int {
-    var url = "https://finance.naver.com/item/sise_day.nhn?code=$stockCode&page=1"
-    var sum = 0
-    var num = 0
-
-    for (i in 1 .. days10) {
-        url = url.dropLast(url.substring(url.lastIndexOf('=') + 1).length) + i // url 구성
-        val document = Jsoup.connect(url).get()
-        val elems = document.getElementsByClass("tah p11") // 숫자들을 가진 태그
-
-        var numOf0_bias = 0 // 전일비 차가 0이면 <img> 태그가 아닌 <span> 태그로 나와 계산 잘못 되는 것 방지
-
-        for (j in 0 until elems.size) {
-            if (elems[j].text() == "0") { // 전일비 0인 것 거름
-                numOf0_bias++
-                continue
-            }
-
-            if ((j - numOf0_bias) % 5 == 0) { // 종가만 추출
-                sum += getPriceWithoutComma(elems[j].text())
-                num++
-            }
-        }
-    }
-
-    return sum / num
-}
-
-fun getMovingAverageOfLastDay(stockCode: String, days10: Int): Int {
-    var url = "https://finance.naver.com/item/sise_day.nhn?code=$stockCode&page=1"
-    var sum = 0
-    var num = 0
-
-    for (i in 1 .. days10) {
-        url = url.dropLast(url.substring(url.lastIndexOf('=') + 1).length) + i // url 구성
-        val document = Jsoup.connect(url).get()
-        val elems = document.getElementsByClass("tah p11") // 숫자들을 가진 태그
-
-        var numOf0_bias = 0 // 전일비 차가 0이면 <img> 태그가 아닌 <span> 태그로 나와 계산 잘못 되는 것 방지
-
-        for (j in 0 until elems.size) {
-            if (elems[j].text() == "0") { // 전일비 0인 것 거름
-                numOf0_bias++
-                continue
-            }
-
-            if ((j - numOf0_bias) % 5 == 0 && !(i == 1 && j == 0)) { // 종가만 추출, 오늘 가격 제외
-                sum += getPriceWithoutComma(elems[j].text())
-                num++
-            }
-        }
-    }
-
-    // 마지막 날 가격 추가
-    url = url.dropLast(url.substring(url.lastIndexOf('=') + 1).length) + (days10 + 1)
-    val document = Jsoup.connect(url).get()
-    val elems = document.getElementsByClass("tah p11") // 숫자들을 가진 태그
-    sum += getPriceWithoutComma(elems[0].text())
-    num++
-
-    return sum / num
-}
 
 fun accessToMiraeWTS(): ChromeDriver {
     System.setProperty("webdriver.chrome.driver", "/Users/sungjaelee/Downloads/chromedriver")
@@ -228,6 +72,7 @@ fun getBalance(driver: ChromeDriver): Int {
 
     return getPriceWithoutComma(driver.findElementsByTagName("td")[158].text)
 }
+
 // HTML을 텍스트파일로 저장
 fun saveHtmlAsTxt(driver: ChromeDriver, path: String) {
     // ex) path = "html.txt"
@@ -390,80 +235,6 @@ fun sell(driver: ChromeDriver, stockCode: String, quantity: Int): Int {
     return price
 }
 
-fun getStockQuantityFromDB(stockCode: String, user: String, pw: String): Int {
-    Class.forName("com.mysql.cj.jdbc.Driver")
-    val conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/STOCK_TRADING", user, pw)
-
-    val sql = "SELECT * FROM TB_STOCK WHERE CODE = ?"
-    val stmt = conn.prepareStatement(sql)
-    stmt.setString(1, stockCode)
-    val rs = stmt.executeQuery()
-
-    val quantity =  if (rs.next()) rs.getInt("QUANTITY") else -1
-
-    conn.close()
-
-    return quantity
-}
-
-fun updateStockQuantityAtDB(stock: Stock, user: String, pw: String): Int {
-    Class.forName("com.mysql.cj.jdbc.Driver")
-    val conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/STOCK_TRADING", user, pw)
-
-    val sql = "INSERT INTO TB_STOCK VALUES(?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE " +
-            "QUANTITY = ?, AVERAGE_PRICE = ?, LAST_SOLD_POINT = ?, LAST_TRADING_DATE = ?"
-    val stmt = conn.prepareStatement(sql)
-    stmt.setString(1, stock.code)
-    stmt.setString(2, stock.name)
-    stmt.setInt(3, stock.quantity)
-    stmt.setInt(4, stock.averagePrice)
-    stmt.setDouble(5, stock.lastSoldPoint)
-    stmt.setTimestamp(6, Timestamp(stock.lastTradingDate))
-
-    stmt.setInt(7, stock.quantity)
-    stmt.setInt(8, stock.averagePrice)
-    stmt.setDouble(9, stock.lastSoldPoint)
-    stmt.setTimestamp(10, Timestamp(stock.lastTradingDate))
-    val count = stmt.executeUpdate()
-
-    //if (count == 1) conn.commit() // auto-commit이라 제거
-    conn.close()
-
-    return count
-}
-
-fun getAllStocksInfoFromDB(user: String, pw: String): ArrayList<Stock> {
-    Class.forName("com.mysql.cj.jdbc.Driver")
-    val conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/STOCK_TRADING", user, pw)
-
-    val sql = "SELECT * FROM TB_STOCK"
-    val stmt = conn.prepareStatement(sql)
-    val rs = stmt.executeQuery()
-
-    val arrayList = ArrayList<Stock>()
-
-    while (rs.next()) {
-        arrayList.add(Stock(rs.getString("CODE"), rs.getString("NAME"),
-            rs.getInt("QUANTITY"), rs.getInt("AVERAGE_PRICE"),
-                rs.getDouble("LAST_SOLD_POINT"), rs.getTimestamp("LAST_TRADING_DATE").time))
-    }
-
-    conn.close()
-
-    return arrayList
-}
-
-fun addFirstStocksInfoToDB(user: String, pw: String) {
-    val stocks = getCodesTopKospiKosdaq200()
-    var index = 0
-
-    while (index < stocks.size) {
-        val count = updateStockQuantityAtDB(stocks[index], user, pw)
-
-        if (count == 1) index++
-    }
-}
-
 fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, user: String, pw: String) {
     var balance = bal
     val dayInMillisecond = 1000 * 60 * 60 * 24L
@@ -596,29 +367,6 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
     }
 
     println("장이 종료되었습니다.")
-}
-
-fun addLogToDB(stock: Stock, type: String, price: Int, quantity: Int, profit: Int?, user: String, pw: String): Int {
-    Class.forName("com.mysql.cj.jdbc.Driver")
-    val conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/STOCK_TRADING", user, pw)
-
-    val sql = "INSERT INTO TB_LOG VALUES(?, ?, ?, ?, ?, ?, ?)"
-    val stmt = conn.prepareStatement(sql)
-    stmt.setString(1, stock.code)
-    stmt.setString(2, stock.name)
-    stmt.setString(3, type)
-    stmt.setInt(4, price)
-    stmt.setInt(5, quantity)
-    if (profit != null) stmt.setInt(6, profit)
-    else stmt.setNull(6, java.sql.Types.INTEGER)
-    stmt.setTimestamp(7, Timestamp(stock.lastTradingDate))
-
-    val count = stmt.executeUpdate()
-
-    //if (count == 1) conn.commit() // auto-commit이라 제거
-    conn.close()
-
-    return count
 }
 
 fun waitForDisplayingById(driver: ChromeDriver, id: String) {
