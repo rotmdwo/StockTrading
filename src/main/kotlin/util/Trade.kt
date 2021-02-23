@@ -1,6 +1,7 @@
 package util
 
 import org.openqa.selenium.By
+import org.openqa.selenium.JavascriptExecutor
 import org.openqa.selenium.chrome.ChromeDriver
 import org.openqa.selenium.chrome.ChromeOptions
 import org.openqa.selenium.support.ui.ExpectedConditions
@@ -111,7 +112,6 @@ fun test(driver: ChromeDriver) {
 
     //Thread.sleep(500L)
     waitForDisplayingById(driver, "grid_diax0002")
-    saveHtmlAsTxt(driver, "html_bought.txt")
     //println(driver.findElementById("grid_diax0002").text)
     val price = getPriceWithoutComma(driver.findElementById("grid_diax0002")
             .findElements(By.className("pq-grid-cell"))[5].text)
@@ -134,7 +134,7 @@ fun test(driver: ChromeDriver) {
 }
 
 // 매수 가격 반환
-fun buy(driver: ChromeDriver, stockCode: String, quantity: Int): Int {
+fun buy(driver: ChromeDriver, stock: Stock, quantity: Int, balance: Int, user: String, pw: String): Int {
     // 매수 탭 클릭
     waitForDisplayingById(driver, "ui-id-21")
     driver.findElementById("ui-id-21").click()
@@ -142,7 +142,7 @@ fun buy(driver: ChromeDriver, stockCode: String, quantity: Int): Int {
     // 종목코드 입력
     //Thread.sleep(2000L)
     waitForDisplayingById(driver, "search_num")
-    driver.findElementById("search_num").sendKeys(stockCode)
+    driver.findElementById("search_num").sendKeys(stock.code)
 
     // 시장가 선택
     driver.findElementsByName("orderOp_0100")[0].click()
@@ -169,25 +169,29 @@ fun buy(driver: ChromeDriver, stockCode: String, quantity: Int): Int {
             .findElements(By.className("pq-grid-cell"))[5].text)
             //.findElements(By.xpath("//td[contains(@class, 'pq-grid-cell') and contains(@class, 'pq-align-right') and contains(@class, 'low')]"))[28].text)
 
+    val newBalance = updateDbAfterBuy(stock, quantity, price, balance, user, pw)
+
     //waitForDisplayingById(driver, "messageBox_1002Ok")
     //driver.findElementById("messageBox_1002Ok").click()
     // 확인버튼의 랜덤 id 해결책
+    Thread.sleep(3000L)
     val buttons = driver.findElementsByTagName("button")
     for (button in buttons) {
         val id = button.getAttribute("id")
 
-        if (id.contains("Ok")) {
+        //if (id.contains("Ok")) {
+        if (id.contains("Close")) {
             waitForClickableById(driver, id)
             button.click()
             break
         }
     }
 
-    return price
+    return newBalance
 }
 
 // 매도 가격 반환
-fun sell(driver: ChromeDriver, stockCode: String, quantity: Int): Int {
+fun sell(driver: ChromeDriver, stock: Stock, quantity: Int, balance: Int, user: String, pw: String): Int {
     // 매도 탭 클릭
     waitForDisplayingById(driver, "ui-id-22")
     driver.findElementById("ui-id-22").click()
@@ -195,7 +199,7 @@ fun sell(driver: ChromeDriver, stockCode: String, quantity: Int): Int {
     // 종목코드 입력
     //Thread.sleep(2000L)
     waitForDisplayingById(driver, "search_num")
-    driver.findElementsById("search_num")[1].sendKeys(stockCode)
+    driver.findElementsById("search_num")[1].sendKeys(stock.code)
 
     // 시장가 선택
     driver.findElementsByName("orderOp1_0100")[0].click()
@@ -219,20 +223,59 @@ fun sell(driver: ChromeDriver, stockCode: String, quantity: Int): Int {
             .findElements(By.className("pq-grid-cell"))[5].text)
             //.findElements(By.xpath("//td[contains(@class, 'pq-grid-cell') and contains(@class, 'pq-align-right') and contains(@class, 'low')]"))[28].text)
 
+    val newBalance = updateDbAfterSell(stock, quantity, price, balance, user, pw)
+
     //waitForDisplayingById(driver, "messageBox_1002Ok")
     //driver.findElementById("messageBox_1002Ok").click()
+    Thread.sleep(3000L)
     val buttons = driver.findElementsByTagName("button")
     for (button in buttons) {
         val id = button.getAttribute("id")
 
-        if (id.contains("Ok")) {
+        //if (id.contains("Ok")) {
+        if (id.contains("Close")) {
             waitForClickableById(driver, id)
             button.click()
             break
         }
     }
 
-    return price
+    return newBalance
+}
+
+fun updateDbAfterBuy(stock: Stock, boughtQuantity: Int, boughtPrice: Int, balance: Int, user: String, pw: String): Int {
+    stock.averagePrice = (stock.averagePrice * stock.quantity + boughtPrice * boughtQuantity) / (stock.quantity + boughtQuantity)
+    stock.quantity += boughtQuantity
+    stock.lastSoldPoint = 0.0
+    stock.lastTradingDate = System.currentTimeMillis()
+    val newBalance = balance - boughtQuantity * boughtPrice
+
+    updateStockQuantityAtDB(stock, user, pw)
+    addLogToDB(stock, "buy", boughtPrice, boughtQuantity, null, user, pw)
+
+    println("==============================")
+    println("${stock.name}(${stock.code}) 개 당 ${boughtPrice}원에 ${boughtQuantity}주 매수 > 계좌 잔액 ${newBalance}원")
+    println("==============================")
+
+    return newBalance
+}
+
+fun updateDbAfterSell(stock: Stock, soldQuantity: Int, soldPrice: Int, balance: Int, user: String, pw: String): Int {
+    val profit = ((soldPrice - stock.averagePrice) * soldQuantity - soldPrice * soldQuantity * 0.0025).toInt()
+    val newBalance = balance + (soldPrice * soldQuantity * 0.9975).toInt()
+
+    stock.quantity -= soldQuantity
+    if (stock.quantity == 0) stock.averagePrice = 0
+    stock.lastTradingDate = System.currentTimeMillis()
+
+    updateStockQuantityAtDB(stock, user, pw)
+    addLogToDB(stock, "sell", soldPrice, soldQuantity, profit, user, pw)
+
+    println("==============================")
+    println("${stock.name}(${stock.code}) 개 당 ${soldPrice}원에 ${soldQuantity}주 매도 > 계좌 잔액 ${newBalance}원")
+    println("==============================")
+
+    return newBalance
 }
 
 fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, user: String, pw: String) {
@@ -257,23 +300,6 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
         currentTime = format.format(System.currentTimeMillis())
     }
 
-    // nested function
-    fun updateDbAfterSell(stock: Stock, soldQuantity: Int, soldPrice: Int) {
-        val profit = ((soldPrice - stock.averagePrice) * soldQuantity - soldPrice * soldQuantity * 0.0025).toInt()
-        balance += profit
-
-        stock.quantity -= soldQuantity
-        if (stock.quantity == 0) stock.averagePrice = 0
-        stock.lastTradingDate = System.currentTimeMillis()
-
-        updateStockQuantityAtDB(stock, user, pw)
-        addLogToDB(stock, "sell", soldPrice, soldQuantity, profit, user, pw)
-
-        println("==============================")
-        println("${stock.name}(${stock.code}) 개 당 ${soldPrice}원에 ${soldQuantity}주 매도 > 계좌 잔액 ${balance}원")
-        println("==============================")
-    }
-
     while (openingTime <= currentTime && currentTime < closingTime) {
         for (i in 0 until stocks.size) {
             val stock = stocks[i]
@@ -292,130 +318,102 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
                 (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 1.0
                     && price < balance && 500000 <= balance) {
                 val boughtQuantity = if (price > 500000) 1 else 500000 / price
-                val boughtPrice = buy(driver, stock.code, boughtQuantity)
-                stock.averagePrice = (stock.averagePrice * stock.quantity + boughtPrice * boughtQuantity) / (stock.quantity + boughtQuantity)
-                stock.quantity += boughtQuantity
-                stock.lastSoldPoint = 0.0
-                stock.lastTradingDate = System.currentTimeMillis()
-                balance -= boughtQuantity * boughtPrice
-
-                updateStockQuantityAtDB(stock, user, pw)
-                addLogToDB(stock, "buy", boughtPrice, boughtQuantity, null, user, pw)
-
-                println("==============================")
-                println("${stock.name}(${stock.code}) 개 당 ${boughtPrice}원에 ${boughtQuantity}주 매수 > 계좌 잔액 ${balance}원")
-                println("==============================")
+                balance = buy(driver, stock, boughtQuantity, balance, user, pw)
             }
             // sell - 데드크로스
             else if (stock.quantity > 0 && previous60 < previous20 && current20 < current60 &&
                 (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 1.0 &&
                 (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.0125) {
                 val soldQuantity = stock.quantity
-                val soldPrice = sell(driver, stock.code, soldQuantity)
                 stock.lastSoldPoint = (price - stock.averagePrice) / stock.averagePrice.toDouble() * 100
-                updateDbAfterSell(stock, soldQuantity, soldPrice)
+                balance = sell(driver, stock, soldQuantity, balance, user, pw)
             }
             // sell : +4% 이익
             else if (stock.quantity > 0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.04 &&
                     stock.lastSoldPoint < 4.0) {
                 val soldQuantity = (stock.quantity * 1 / 7).coerceAtLeast(1)
-                val soldPrice = sell(driver, stock.code, soldQuantity)
                 stock.lastSoldPoint = 4.0
-                updateDbAfterSell(stock, soldQuantity, soldPrice)
+                balance = sell(driver, stock, soldQuantity, balance, user, pw)
             }
             // sell : +6% 이익
             else if (stock.quantity > 0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.06 &&
                     stock.lastSoldPoint < 6.0) {
                 val soldQuantity = (stock.quantity * 1 / 6).coerceAtLeast(1)
-                val soldPrice = sell(driver, stock.code, soldQuantity)
                 stock.lastSoldPoint = 6.0
-                updateDbAfterSell(stock, soldQuantity, soldPrice)
+                balance = sell(driver, stock, soldQuantity, balance, user, pw)
             }
             // sell : +8% 이익
             else if (stock.quantity > 0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.08 &&
                     stock.lastSoldPoint < 8.0) {
                 val soldQuantity = (stock.quantity * 1 / 5).coerceAtLeast(1)
-                val soldPrice = sell(driver, stock.code, soldQuantity)
                 stock.lastSoldPoint = 8.0
-                updateDbAfterSell(stock, soldQuantity, soldPrice)
+                balance = sell(driver, stock, soldQuantity, balance, user, pw)
             }
             // sell : +10% 이익
             else if (stock.quantity > 0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.1 &&
                     stock.lastSoldPoint < 10.0) {
                 val soldQuantity = (stock.quantity * 1 / 4).coerceAtLeast(1)
-                val soldPrice = sell(driver, stock.code, soldQuantity)
                 stock.lastSoldPoint = 10.0
-                updateDbAfterSell(stock, soldQuantity, soldPrice)
+                balance = sell(driver, stock, soldQuantity, balance, user, pw)
             }
             // sell : +12% 이익
             else if (stock.quantity > 0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.12 &&
                     stock.lastSoldPoint < 12.0) {
                 val soldQuantity = (stock.quantity * 1 / 3).coerceAtLeast(1)
-                val soldPrice = sell(driver, stock.code, soldQuantity)
                 stock.lastSoldPoint = 12.0
-                updateDbAfterSell(stock, soldQuantity, soldPrice)
+                balance = sell(driver, stock, soldQuantity, balance, user, pw)
             }
             // sell : +14% 이익
             else if (stock.quantity > 0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.14 &&
                     stock.lastSoldPoint < 14.0) {
                 val soldQuantity = (stock.quantity * 1 / 2).coerceAtLeast(1)
-                val soldPrice = sell(driver, stock.code, soldQuantity)
                 stock.lastSoldPoint = 14.0
-                updateDbAfterSell(stock, soldQuantity, soldPrice)
+                balance = sell(driver, stock, soldQuantity, balance, user, pw)
             }
             // sell : +16% 이익
             else if (stock.quantity > 0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.16 &&
                     stock.lastSoldPoint < 16.0) {
                 val soldQuantity = (stock.quantity * 1 / 1).coerceAtLeast(1)
-                val soldPrice = sell(driver, stock.code, soldQuantity)
                 stock.lastSoldPoint = 16.0
-                updateDbAfterSell(stock, soldQuantity, soldPrice)
+                balance = sell(driver, stock, soldQuantity, balance, user, pw)
             }
             // stop loss : -8% 하락
             else if (stock.quantity > 0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() < -0.08) {
                 val soldQuantity = stock.quantity
-                val soldPrice = sell(driver, stock.code, soldQuantity)
                 stock.lastSoldPoint = -8.0
-                updateDbAfterSell(stock, soldQuantity, soldPrice)
+                balance = sell(driver, stock, soldQuantity, balance, user, pw)
             }
             // sell : 오래된 주식들 매도
             else if (stock.quantity > 0 && (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 14.0) {
 
                 if (stock.lastSoldPoint == 0.0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.0225) {
                     val soldQuantity = (stock.quantity * 1 / 7).coerceAtLeast(1)
-                    val soldPrice = sell(driver, stock.code, soldQuantity)
                     stock.lastSoldPoint = 4.0
-                    updateDbAfterSell(stock, soldQuantity, soldPrice)
+                    balance = sell(driver, stock, soldQuantity, balance, user, pw)
                 } else if (stock.lastSoldPoint == 4.0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.04) {
                     val soldQuantity = (stock.quantity * 1 / 6).coerceAtLeast(1)
-                    val soldPrice = sell(driver, stock.code, soldQuantity)
                     stock.lastSoldPoint = 6.0
-                    updateDbAfterSell(stock, soldQuantity, soldPrice)
+                    balance = sell(driver, stock, soldQuantity, balance, user, pw)
                 } else if (stock.lastSoldPoint == 6.0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.04) {
                     val soldQuantity = (stock.quantity * 1 / 5).coerceAtLeast(1)
-                    val soldPrice = sell(driver, stock.code, soldQuantity)
                     stock.lastSoldPoint = 8.0
-                    updateDbAfterSell(stock, soldQuantity, soldPrice)
+                    balance = sell(driver, stock, soldQuantity, balance, user, pw)
                 } else if (stock.lastSoldPoint == 8.0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.04) {
                     val soldQuantity = (stock.quantity * 1 / 4).coerceAtLeast(1)
-                    val soldPrice = sell(driver, stock.code, soldQuantity)
                     stock.lastSoldPoint = 10.0
-                    updateDbAfterSell(stock, soldQuantity, soldPrice)
+                    balance = sell(driver, stock, soldQuantity, balance, user, pw)
                 } else if (stock.lastSoldPoint == 10.0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.04) {
                     val soldQuantity = (stock.quantity * 1 / 3).coerceAtLeast(1)
-                    val soldPrice = sell(driver, stock.code, soldQuantity)
                     stock.lastSoldPoint = 12.0
-                    updateDbAfterSell(stock, soldQuantity, soldPrice)
+                    balance = sell(driver, stock, soldQuantity, balance, user, pw)
                 } else if (stock.lastSoldPoint == 12.0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.04) {
                     val soldQuantity = (stock.quantity * 1 / 2).coerceAtLeast(1)
-                    val soldPrice = sell(driver, stock.code, soldQuantity)
                     stock.lastSoldPoint = 14.0
-                    updateDbAfterSell(stock, soldQuantity, soldPrice)
+                    balance = sell(driver, stock, soldQuantity, balance, user, pw)
                 } else if (stock.lastSoldPoint == 14.0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.04) {
                     val soldQuantity = (stock.quantity * 1 / 1).coerceAtLeast(1)
-                    val soldPrice = sell(driver, stock.code, soldQuantity)
                     stock.lastSoldPoint = 16.0
-                    updateDbAfterSell(stock, soldQuantity, soldPrice)
+                    balance = sell(driver, stock, soldQuantity, balance, user, pw)
                 }
             }
         }
