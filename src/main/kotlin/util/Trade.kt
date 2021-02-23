@@ -7,7 +7,9 @@ import org.openqa.selenium.chrome.ChromeOptions
 import org.openqa.selenium.support.ui.ExpectedConditions
 import org.openqa.selenium.support.ui.WebDriverWait
 import stock.Stock
+import java.io.BufferedReader
 import java.io.FileWriter
+import java.io.InputStreamReader
 import java.lang.Math.abs
 import java.text.SimpleDateFormat
 import kotlin.collections.ArrayList
@@ -65,6 +67,38 @@ fun accessToMiraeWTS(): ChromeDriver {
     return driver
 }
 
+fun closeWindowThenReenterWTS(driver: ChromeDriver) {
+    driver.close()
+    var windows = driver.windowHandles
+    driver.switchTo().window(windows.last())
+
+    // frame 선택
+    driver.switchTo().frame(driver.findElementById("contentframe"))
+
+    // 트레이딩 탭 클릭
+    val quick_menu = driver.findElementByClassName("quick_menu")
+    val links = quick_menu.findElements(By.tagName("a"))
+    links[3].click()
+
+    // 새로 띄어지는 창으로 focus 옮김
+    windows = driver.windowHandles
+    driver.switchTo().window(windows.last())
+
+    // frame 선택
+    driver.switchTo().frame(driver.findElementById("contentframe"))
+    // 로딩 대기 후 주식종합 탭 클릭
+    Thread.sleep(4000L)
+    //waitForDisplayingById(driver, "mdiMenu_mdi0100")
+    driver.findElementById("mdiMenu_mdi0100").click()
+
+    // 로딩 대기 후 매수 탭 클릭
+    //Thread.sleep(1000L)
+    waitForDisplayingById(driver, "ui-id-21")
+    driver.findElementById("ui-id-21").click()
+
+    println("오류발생 후 재접속 완료. 매수탭과 매도탭의 계좌를 선택하고 비밀번호를 입력해주세요.")
+}
+
 fun getBalance(driver: ChromeDriver): Int {
     Thread.sleep(2000L)
     driver.findElementById("ui-id-11").click()
@@ -83,7 +117,7 @@ fun saveHtmlAsTxt(driver: ChromeDriver, path: String) {
     fWriter.close()
 }
 
-fun test(driver: ChromeDriver) {
+fun test(driver: ChromeDriver): String {
     // 매수 탭 클릭
     waitForDisplayingById(driver, "ui-id-21")
     driver.findElementById("ui-id-21").click()
@@ -110,27 +144,27 @@ fun test(driver: ChromeDriver) {
     waitForDisplayingById(driver, "confirm")
     driver.findElementById("confirm").click()
 
-    //Thread.sleep(500L)
-    waitForDisplayingById(driver, "grid_diax0002")
-    //println(driver.findElementById("grid_diax0002").text)
-    val price = getPriceWithoutComma(driver.findElementById("grid_diax0002")
-            .findElements(By.className("pq-grid-cell"))[5].text)
-    //.findElements(By.xpath("//td[contains(@class, 'pq-grid-cell') and contains(@class, 'pq-align-right') and contains(@class, 'low')]"))[28].text)
+    try {
+        driver.findElementById("random123").click()
+    } catch (e: Exception) {
+        driver.close()
+        val windows = driver.windowHandles
+        driver.switchTo().window(windows.last())
 
-    //waitForDisplayingById(driver, "messageBox_1002Ok")
-    //driver.findElementById("messageBox_1002Ok").click()
-    // 확인버튼의 랜덤 id 해결책
-    //Thread.sleep(3000L)
-    val buttons = driver.findElementsByTagName("button")
-    for (button in buttons) {
-        val id = button.getAttribute("id")
+        // frame 선택
+        driver.switchTo().frame(driver.findElementById("contentframe"))
 
-        if (id.contains("Ok")) {
-            WebDriverWait(driver, 60).until(ExpectedConditions.elementToBeClickable(By.id(id)))
-            button.click()
-            break
-        }
+        // 트레이딩 탭 클릭
+        saveHtmlAsTxt(driver, "main_page.txt")
+        val quick_menu = driver.findElementByClassName("quick_menu")
+        val links = quick_menu.findElements(By.tagName("a"))
+        links[3].click()
     }
+
+    return "OK"
+
+
+    //driver.executeScript("arguments[0].click();", button)
 }
 
 // 매수 가격 반환
@@ -174,17 +208,23 @@ fun buy(driver: ChromeDriver, stock: Stock, quantity: Int, balance: Int, user: S
     //waitForDisplayingById(driver, "messageBox_1002Ok")
     //driver.findElementById("messageBox_1002Ok").click()
     // 확인버튼의 랜덤 id 해결책
-    Thread.sleep(3000L)
-    val buttons = driver.findElementsByTagName("button")
-    for (button in buttons) {
-        val id = button.getAttribute("id")
+    try {
+        val buttons = driver.findElementsByTagName("button")
+        for (button in buttons) {
+            val id = button.getAttribute("id")
 
-        //if (id.contains("Ok")) {
-        if (id.contains("Close")) {
-            waitForClickableById(driver, id)
-            button.click()
-            break
+            //if (id.contains("Ok")) {
+            if (id.contains("Close")) {
+                waitForClickableById(driver, id)
+                button.click()
+                break
+            }
         }
+    } catch (e: Exception) {
+        closeWindowThenReenterWTS(driver)
+        do {
+            println("계좌 비밀번호를 입력하셨습니까? (y/n) : ")
+        } while (BufferedReader(InputStreamReader(System.`in`)).readLine() != "y")
     }
 
     return newBalance
@@ -227,17 +267,23 @@ fun sell(driver: ChromeDriver, stock: Stock, quantity: Int, balance: Int, user: 
 
     //waitForDisplayingById(driver, "messageBox_1002Ok")
     //driver.findElementById("messageBox_1002Ok").click()
-    Thread.sleep(3000L)
-    val buttons = driver.findElementsByTagName("button")
-    for (button in buttons) {
-        val id = button.getAttribute("id")
+    try {
+        val buttons = driver.findElementsByTagName("button")
+        for (button in buttons) {
+            val id = button.getAttribute("id")
 
-        //if (id.contains("Ok")) {
-        if (id.contains("Close")) {
-            waitForClickableById(driver, id)
-            button.click()
-            break
+            //if (id.contains("Ok")) {
+            if (id.contains("Close")) {
+                waitForClickableById(driver, id)
+                button.click()
+                break
+            }
         }
+    } catch (e: Exception) {
+        closeWindowThenReenterWTS(driver)
+        do {
+            println("계좌 비밀번호를 입력하셨습니까? (y/n) : ")
+        } while (BufferedReader(InputStreamReader(System.`in`)).readLine() != "y")
     }
 
     return newBalance
