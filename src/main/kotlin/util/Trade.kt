@@ -33,7 +33,7 @@ fun accessToMiraeWTS(isRemote: Boolean): ChromeDriver {
     val login_box = driver.findElementByClassName("login_box")
     login_box.findElement(By.tagName("a")).click()
 
-    if (isRemote) { // 원격접속 - 간편인증 사용
+    if (!isRemote) { // 원격접속 - 간편인증 사용
         // QR 로그인 선택
         driver.findElementByClassName("menu_02").click()
 
