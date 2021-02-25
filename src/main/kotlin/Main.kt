@@ -38,7 +38,12 @@ fun main() {
             when (command) {
                 "test" -> test()
                 "access" -> {
-                    driver = accessToMiraeWTS()
+                    driver = accessToMiraeWTS(false)
+                    balance = getBalance(driver!!)
+                    println("현재 계좌잔액은 ${balance}원 입니다.")
+                }
+                "remote access" -> {
+                    driver = accessToMiraeWTS(true)
                     balance = getBalance(driver!!)
                     println("현재 계좌잔액은 ${balance}원 입니다.")
                 }

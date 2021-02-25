@@ -1,5 +1,6 @@
 package util
 
+import javafx.concurrent.Task
 import org.jsoup.Jsoup
 import org.openqa.selenium.By
 import org.openqa.selenium.chrome.ChromeDriver
@@ -14,8 +15,9 @@ import java.io.InputStreamReader
 import java.lang.Math.abs
 import java.text.SimpleDateFormat
 import kotlin.collections.ArrayList
+import java.util.concurrent.*
 
-fun accessToMiraeWTS(): ChromeDriver {
+fun accessToMiraeWTS(isRemote: Boolean): ChromeDriver {
     System.setProperty("webdriver.chrome.driver", "/Users/sungjaelee/Downloads/chromedriver")
     val options = ChromeOptions()
     options.setCapability("ignoreProtectedModeSettings", true)
@@ -31,16 +33,29 @@ fun accessToMiraeWTS(): ChromeDriver {
     val login_box = driver.findElementByClassName("login_box")
     login_box.findElement(By.tagName("a")).click()
 
-    // QR 로그인 선택
-    driver.findElementByClassName("menu_02").click()
+    if (isRemote) { // 원격접속 - 간편인증 사용
+        // QR 로그인 선택
+        driver.findElementByClassName("menu_02").click()
 
-    // 자동 로그아웃 시간 7시간으로 설정
-    Thread.sleep(4000L)
-    driver.findElementByClassName("select_val").click()
-    driver.findElementById("420").click()
+        // 자동 로그아웃 시간 7시간으로 설정
+        Thread.sleep(4000L)
+        driver.findElementByClassName("select_val").click()
+        driver.findElementById("420").click()
 
-    // QR 인증 11초 대기
-    Thread.sleep(11000L)
+        // QR 인증 11초 대기
+        Thread.sleep(11000L)
+    } else { // 로컬접속 - QR인증 사용
+        // 간편인증 로그인 선택
+        driver.findElementByClassName("menu_01").click()
+
+        // 자동 로그아웃 시간 7시간으로 설정
+        Thread.sleep(4000L)
+        driver.findElementByClassName("select_val").click()
+        driver.findElementById("420").click()
+
+        // 간편인증 120초 대기
+        Thread.sleep(120000L)
+    }
 
     // 트레이딩 탭 클릭
     val quick_menu = driver.findElementByClassName("quick_menu")
@@ -119,10 +134,28 @@ fun saveHtmlAsTxt(driver: ChromeDriver, path: String) {
 }
 
 fun test() {
+    val executor = Executors.newSingleThreadExecutor()
+    val future = executor.submit(Callable {
+        val br = BufferedReader(InputStreamReader(System.`in`))
+        println("인풋: ")
+        br.readLine()
+    })
+
+    var result: String? = null
+
+    while (true) {
+        try {
+            println("1")
+            result = future.get(3, TimeUnit.SECONDS)
+            println("2")
+            if (result != null) println(result)
+            println("3")
+        } catch (e: Exception) {
+            println("시간초과")
+        }
+    }
 
 
-
-    //driver.executeScript("arguments[0].click();", button)
 }
 
 // 매수 가격 반환
