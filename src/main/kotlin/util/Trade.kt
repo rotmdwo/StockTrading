@@ -1,9 +1,10 @@
 package util
 
+import org.jsoup.Jsoup
 import org.openqa.selenium.By
-import org.openqa.selenium.JavascriptExecutor
 import org.openqa.selenium.chrome.ChromeDriver
 import org.openqa.selenium.chrome.ChromeOptions
+import org.openqa.selenium.interactions.Actions
 import org.openqa.selenium.support.ui.ExpectedConditions
 import org.openqa.selenium.support.ui.WebDriverWait
 import stock.Stock
@@ -117,51 +118,8 @@ fun saveHtmlAsTxt(driver: ChromeDriver, path: String) {
     fWriter.close()
 }
 
-fun test(driver: ChromeDriver): String {
-    // 매수 탭 클릭
-    waitForDisplayingById(driver, "ui-id-21")
-    driver.findElementById("ui-id-21").click()
+fun test() {
 
-    // 종목코드 입력
-    //Thread.sleep(2000L)
-    waitForDisplayingById(driver, "search_num")
-    driver.findElementById("search_num").sendKeys("027740")
-
-    // 시장가 선택
-    driver.findElementsByName("orderOp_0100")[0].click()
-    Thread.sleep(250L)
-    //driver.findElementById("unitPrice_0100").sendKeys("0")
-    driver.findElementsByName("orderOp_0100")[1].click()
-
-    // 매수량 설정
-    driver.findElementById("mesuQty_0100").sendKeys("1")
-
-    // 매수 버튼 클릭
-    driver.findElementById("mesu_0100").click()
-
-    // 매수 확인
-    //Thread.sleep(500L)
-    waitForDisplayingById(driver, "confirm")
-    driver.findElementById("confirm").click()
-
-    try {
-        driver.findElementById("random123").click()
-    } catch (e: Exception) {
-        driver.close()
-        val windows = driver.windowHandles
-        driver.switchTo().window(windows.last())
-
-        // frame 선택
-        driver.switchTo().frame(driver.findElementById("contentframe"))
-
-        // 트레이딩 탭 클릭
-        saveHtmlAsTxt(driver, "main_page.txt")
-        val quick_menu = driver.findElementByClassName("quick_menu")
-        val links = quick_menu.findElements(By.tagName("a"))
-        links[3].click()
-    }
-
-    return "OK"
 
 
     //driver.executeScript("arguments[0].click();", button)
@@ -213,10 +171,10 @@ fun buy(driver: ChromeDriver, stock: Stock, quantity: Int, balance: Int, user: S
         for (button in buttons) {
             val id = button.getAttribute("id")
 
-            //if (id.contains("Ok")) {
-            if (id.contains("Close")) {
-                waitForClickableById(driver, id)
-                button.click()
+            if (id.contains("Ok")) {
+                //waitForClickableById(driver, id)
+                //button.click()
+                Actions(driver).moveToElement(button).click(button).perform()
                 break
             }
         }
@@ -272,10 +230,10 @@ fun sell(driver: ChromeDriver, stock: Stock, quantity: Int, balance: Int, user: 
         for (button in buttons) {
             val id = button.getAttribute("id")
 
-            //if (id.contains("Ok")) {
-            if (id.contains("Close")) {
-                waitForClickableById(driver, id)
-                button.click()
+            if (id.contains("Ok")) {
+                //waitForClickableById(driver, id)
+                //button.click()
+                Actions(driver).moveToElement(button).click(button).perform()
                 break
             }
         }
@@ -333,11 +291,27 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
     var currentTime = format.format(System.currentTimeMillis())
 
     val lastDayMA = Array(stocks.size, {IntArray(2)})
+    val dayBeforeLastDayMA = Array(stocks.size, {IntArray(2)})
+    val isNewStockArray = BooleanArray(stocks.size, {false})
 
     for (i in 0 until stocks.size) {
-        val lastDayMA20 = getMovingAverageOfLastDay10(stocks[i].code)
-        val lastDayMA60 = getMovingAverageOfLastDay30(stocks[i].code)
-        lastDayMA[i] = intArrayOf(lastDayMA20, lastDayMA60)
+        isNewStockArray[i] = isNewStock(stocks[i].code)
+    }
+
+    // 전날 기준 이동평균값 가져옴
+    for (i in 0 until stocks.size) {
+        if (isNewStockArray[i]) continue
+        val lastDayMA5 = getMovingAverageOfLastDay5(stocks[i].code)
+        val lastDayMA20 = getMovingAverageOfLastDay20(stocks[i].code)
+        lastDayMA[i] = intArrayOf(lastDayMA5, lastDayMA20)
+    }
+
+    // 이틀전 기준 이동평균값 가져옴
+    for (i in 0 until stocks.size) {
+        if (isNewStockArray[i]) continue
+        val dayBeforeLastDayMA5 = getMovingAverageOfDayBeforeLastDay5(stocks[i].code)
+        val dayBeforeLastDayMA20 = getMovingAverageOfDayBeforeLastDay20(stocks[i].code)
+        dayBeforeLastDayMA[i] = intArrayOf(dayBeforeLastDayMA5, dayBeforeLastDayMA20)
     }
 
     // 개장전 대기
@@ -348,28 +322,33 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
 
     while (openingTime <= currentTime && currentTime < closingTime) {
         for (i in 0 until stocks.size) {
+            if (isNewStockArray[i]) continue
+
             val stock = stocks[i]
-            val previous20 = lastDayMA[i][0]
-            val previous60 = lastDayMA[i][1]
-            val current20 = getMovingAverage10(stock.code)
-            val current60 = getMovingAverage30(stock.code)
+            val dayBeforeLastDay5 = dayBeforeLastDayMA[i][0]
+            val dayBeforeLastDay20 = dayBeforeLastDayMA[i][1]
+            val lastDay5 = lastDayMA[i][0]
+            val lastDay20 = lastDayMA[i][1]
+            val current5 = getMovingAverage5(stock.code)
+            val current20 = getMovingAverage20(stock.code)
             val price = getCurrentPrice(stock.code)
 
-            if (abs((current20 - current60)/current60.toDouble()) < 0.01) {
-                println("${stock.name} 단기MA: ${current20} 중기MA: ${current60}")
+            if (abs((current5 - current20)/current20.toDouble()) < 0.01) {
+                println("${stock.name} 단기MA: ${current5} 중기MA: ${current20}")
             }
 
             // buy - 골든크로스
-            if (stock.quantity == 0 && previous20 < previous60 && current60 < current20 &&
-                (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 1.0
-                    && price < balance && 500000 <= balance) {
+            if (stock.quantity == 0 && dayBeforeLastDay5 < dayBeforeLastDay20 && lastDay5 < lastDay20 &&
+                    dayBeforeLastDay5 < lastDay5 && lastDay5 < current5 && current20 < current5 &&
+                    (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 1.0 &&
+                    price < balance && 500000 <= balance) {
                 val boughtQuantity = if (price > 500000) 1 else 500000 / price
                 balance = buy(driver, stock, boughtQuantity, balance, user, pw)
             }
             // sell - 데드크로스
-            else if (stock.quantity > 0 && previous60 < previous20 && current20 < current60 &&
+            else if (stock.quantity > 0 && lastDay20 < lastDay5 && current5 < current20 &&
                 (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 1.0 &&
-                (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.0125) {
+                (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.005) {
                 val soldQuantity = stock.quantity
                 stock.lastSoldPoint = (price - stock.averagePrice) / stock.averagePrice.toDouble() * 100
                 balance = sell(driver, stock, soldQuantity, balance, user, pw)
@@ -476,4 +455,27 @@ fun waitForDisplayingById(driver: ChromeDriver, id: String) {
 
 fun waitForClickableById(driver: ChromeDriver, id: String) {
     WebDriverWait(driver, 60).until(ExpectedConditions.elementToBeClickable(By.id(id)))
+}
+
+fun isNewStock(stockCode: String): Boolean {
+    val url = "https://finance.naver.com/item/sise_day.nhn?code=$stockCode&page=1"
+    var document = Jsoup.connect(url).get()
+    var elems = document.getElementsByTag("table")
+    val nav = elems[1]
+
+    // 신규상장 종목 거름
+    val pageNum = nav.getElementsByTag("tr")[0].getElementsByTag("td").size - 1
+    if (pageNum <= 3) return true
+
+    // 거래정지 종목 거름
+    document = Jsoup.connect(url).get()
+    elems = document.getElementsByClass("tah p11") // 숫자들을 가진 태그
+
+    for (i in 0 until 60) {
+        if (i % 6 == 1 && elems[i].text() != "0") {
+            return false
+        }
+    }
+
+    return true
 }
