@@ -18,6 +18,9 @@ fun main() {
     val id = br.readLine()
     print("DB PW를 입력해주세요: ")
     val pw = br.readLine()
+    print("Email PW를 입력해주세요: ")
+    val emailPassword = br.readLine()
+    val email = Email(emailPassword)
     println()
 
     try {
@@ -50,7 +53,7 @@ fun main() {
                 "trade" -> {
                     driver?.let {// if not null
                         println("자동매매 시작")
-                        startAutoTrading(it, stocks, balance, id, pw)
+                        startAutoTrading(it, stocks, balance, id, pw, email)
                     } ?: run { // if null
                         println("먼저 access 명령어를 통해 WTS에 접속해주세요.")
                     }
@@ -65,6 +68,8 @@ fun main() {
         }
     } catch (e: Exception) {
         e.printStackTrace()
+
+        email.notifyError("프로그램 종료됨")
     }
 
 
