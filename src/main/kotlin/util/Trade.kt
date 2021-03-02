@@ -4,7 +4,6 @@ import org.jsoup.Jsoup
 import org.openqa.selenium.By
 import org.openqa.selenium.chrome.ChromeDriver
 import org.openqa.selenium.chrome.ChromeOptions
-import org.openqa.selenium.interactions.Actions
 import org.openqa.selenium.support.ui.ExpectedConditions
 import org.openqa.selenium.support.ui.WebDriverWait
 import stock.Stock
@@ -131,50 +130,65 @@ fun saveHtmlAsTxt(driver: ChromeDriver, path: String) {
 }
 
 fun test() {
-
-
+    val asd = try {
+        getPriceWithoutComma("")
+    } catch (e: NumberFormatException) {
+        2000
+    }
+    println(asd)
 }
 
 // 매수 가격 반환
-fun buy(driver: ChromeDriver, stock: Stock, quantity: Int, balance: Int, user: String, pw: String, email: Email): Int {
-    // 매수 탭 클릭
-    waitForDisplayingById(driver, "ui-id-21")
-    driver.findElementById("ui-id-21").click()
+fun buy(driver: ChromeDriver, stock: Stock, expectedPrice: Int, quantity: Int, balance: Int, user: String, pw: String, email: Email): Int {
+    try {
+        // 매수 탭 클릭
+        waitForDisplayingById(driver, "ui-id-21")
+        driver.findElementById("ui-id-21").click()
 
-    // 종목코드 입력
-    //Thread.sleep(2000L)
-    waitForDisplayingById(driver, "search_num")
-    driver.findElementById("search_num").sendKeys(stock.code)
+        // 종목코드 입력
+        //Thread.sleep(2000L)
+        waitForDisplayingById(driver, "search_num")
+        driver.findElementById("search_num").sendKeys(stock.code)
 
-    // 시장가 선택
-    driver.findElementsByName("orderOp_0100")[0].click()
-    Thread.sleep(250L)
-    //driver.findElementById("unitPrice_0100").sendKeys("0")
-    driver.findElementsByName("orderOp_0100")[1].click()
+        // 시장가 선택
+        driver.findElementsByName("orderOp_0100")[0].click()
+        Thread.sleep(250L)
+        //driver.findElementById("unitPrice_0100").sendKeys("0")
+        driver.findElementsByName("orderOp_0100")[1].click()
 
-    // 매수량 설정
-    driver.findElementById("mesuQty_0100").sendKeys("$quantity")
+        // 매수량 설정
+        driver.findElementById("mesuQty_0100").sendKeys("$quantity")
 
-    // 매수 버튼 클릭
-    driver.findElementById("mesu_0100").click()
+        // 매수 버튼 클릭
+        driver.findElementById("mesu_0100").click()
 
-    // 매수 확인
-    //Thread.sleep(500L)
-    waitForDisplayingById(driver, "confirm")
-    driver.findElementById("confirm").click()
+        // 매수 확인
+        waitForDisplayingById(driver, "confirm")
+        driver.findElementById("confirm").click()
 
-    //Thread.sleep(500L)
-    waitForDisplayingById(driver, "grid_diax0002")
-    saveHtmlAsTxt(driver, "html_bought.txt")
-    //println(driver.findElementById("grid_diax0002").text)
-    val price = getPriceWithoutComma(driver.findElementById("grid_diax0002")
+        waitForDisplayingById(driver, "grid_diax0002")
+        saveHtmlAsTxt(driver, "html_bought.txt")
+
+    } catch (e: Exception) {
+        email.notifyError("프로그램 중단됨.<br>확인 또는 작업 취소 후 재가동 해주세요.")
+        //closeWindowThenReenterWTS(driver)
+        do {
+            println("프로그램 재개가 준비되었습니까? (y/n) : ")
+        } while (BufferedReader(InputStreamReader(System.`in`)).readLine() != "y")
+
+        return balance
+    }
+
+    val price = try {
+        getPriceWithoutComma(driver.findElementById("grid_diax0002")
             .findElements(By.className("pq-grid-cell"))[5].text)
-            //.findElements(By.xpath("//td[contains(@class, 'pq-grid-cell') and contains(@class, 'pq-align-right') and contains(@class, 'low')]"))[28].text)
+
+    } catch (e: NumberFormatException) {
+        expectedPrice
+    }
 
     val newBalance = updateDbAfterBuy(stock, quantity, price, balance, user, pw, email)
 
-    //waitForDisplayingById(driver, "messageBox_1002Ok")
-    //driver.findElementById("messageBox_1002Ok").click()
     // 확인버튼의 랜덤 id 해결책
     try {
         val buttons = driver.findElementsByTagName("button")
@@ -183,16 +197,17 @@ fun buy(driver: ChromeDriver, stock: Stock, quantity: Int, balance: Int, user: S
 
             if (id.contains("Ok")) {
                 //waitForClickableById(driver, id)
-                //button.click()
-                Actions(driver).moveToElement(button).click(button).perform()
+                button.click()
+                //Actions(driver).moveToElement(button).click(button).perform()
                 break
             }
         }
+
     } catch (e: Exception) {
-        email.notifyError("프로그램 종료 후 리부트 됨")
-        closeWindowThenReenterWTS(driver)
+        email.notifyError("프로그램 중단됨.<br>확인 또는 작업 취소 후 재가동 해주세요.")
+        //closeWindowThenReenterWTS(driver)
         do {
-            println("계좌 비밀번호를 입력하셨습니까? (y/n) : ")
+            println("프로그램 재개가 준비되었습니까? (y/n) : ")
         } while (BufferedReader(InputStreamReader(System.`in`)).readLine() != "y")
     }
 
@@ -200,42 +215,56 @@ fun buy(driver: ChromeDriver, stock: Stock, quantity: Int, balance: Int, user: S
 }
 
 // 매도 가격 반환
-fun sell(driver: ChromeDriver, stock: Stock, quantity: Int, balance: Int, user: String, pw: String, email: Email): Int {
-    // 매도 탭 클릭
-    waitForDisplayingById(driver, "ui-id-22")
-    driver.findElementById("ui-id-22").click()
+fun sell(driver: ChromeDriver, stock: Stock, expectedPrice: Int, quantity: Int, balance: Int, user: String, pw: String, email: Email): Int {
+    try {
+        // 매도 탭 클릭
+        waitForDisplayingById(driver, "ui-id-22")
+        driver.findElementById("ui-id-22").click()
 
-    // 종목코드 입력
-    //Thread.sleep(2000L)
-    waitForDisplayingById(driver, "search_num")
-    driver.findElementsById("search_num")[1].sendKeys(stock.code)
+        // 종목코드 입력
+        //Thread.sleep(2000L)
+        waitForDisplayingById(driver, "search_num")
+        driver.findElementsById("search_num")[1].sendKeys(stock.code)
 
-    // 시장가 선택
-    driver.findElementsByName("orderOp1_0100")[0].click()
-    Thread.sleep(250L)
-    //driver.findElementById("unitPrice_0100").sendKeys("0")
-    driver.findElementsByName("orderOp1_0100")[1].click()
+        // 시장가 선택
+        driver.findElementsByName("orderOp1_0100")[0].click()
+        Thread.sleep(250L)
+        //driver.findElementById("unitPrice_0100").sendKeys("0")
+        driver.findElementsByName("orderOp1_0100")[1].click()
 
-    // 매도량 설정
-    driver.findElementById("qtyMedo_0100").sendKeys("$quantity")
+        // 매도량 설정
+        driver.findElementById("qtyMedo_0100").sendKeys("$quantity")
 
-    // 매도 버튼 클릭
-    driver.findElementById("medo_0100").click()
-    //Thread.sleep(500L)
-    waitForDisplayingById(driver, "confirm")
-    driver.findElementById("confirm").click()
+        // 매도 버튼 클릭
+        driver.findElementById("medo_0100").click()
 
-    //Thread.sleep(500L)
-    waitForDisplayingById(driver, "grid_diax0002")
-    saveHtmlAsTxt(driver, "html_sold.txt")
-    val price = getPriceWithoutComma(driver.findElementById("grid_diax0002")
+        // 매도 확인
+        waitForDisplayingById(driver, "confirm")
+        driver.findElementById("confirm").click()
+
+        waitForDisplayingById(driver, "grid_diax0002")
+        saveHtmlAsTxt(driver, "html_sold.txt")
+
+    } catch (e: Exception) {
+        email.notifyError("프로그램 중단됨.<br>확인 또는 작업 취소 후 재가동 해주세요.")
+        //closeWindowThenReenterWTS(driver)
+        do {
+            println("프로그램 재개가 준비되었습니까? (y/n) : ")
+        } while (BufferedReader(InputStreamReader(System.`in`)).readLine() != "y")
+
+        return balance
+    }
+
+    val price = try {
+        getPriceWithoutComma(driver.findElementById("grid_diax0002")
             .findElements(By.className("pq-grid-cell"))[5].text)
-            //.findElements(By.xpath("//td[contains(@class, 'pq-grid-cell') and contains(@class, 'pq-align-right') and contains(@class, 'low')]"))[28].text)
+
+    } catch (e: NumberFormatException) {
+        expectedPrice
+    }
 
     val newBalance = updateDbAfterSell(stock, quantity, price, balance, user, pw, email)
 
-    //waitForDisplayingById(driver, "messageBox_1002Ok")
-    //driver.findElementById("messageBox_1002Ok").click()
     try {
         val buttons = driver.findElementsByTagName("button")
         for (button in buttons) {
@@ -243,16 +272,17 @@ fun sell(driver: ChromeDriver, stock: Stock, quantity: Int, balance: Int, user: 
 
             if (id.contains("Ok")) {
                 //waitForClickableById(driver, id)
-                //button.click()
-                Actions(driver).moveToElement(button).click(button).perform()
+                button.click()
+                //Actions(driver).moveToElement(button).click(button).perform()
                 break
             }
         }
+
     } catch (e: Exception) {
-        email.notifyError("프로그램 종료 후 리부트 됨")
-        closeWindowThenReenterWTS(driver)
+        email.notifyError("프로그램 중단됨.<br>확인 또는 작업 취소 후 재가동 해주세요.")
+        //closeWindowThenReenterWTS(driver)
         do {
-            println("계좌 비밀번호를 입력하셨습니까? (y/n) : ")
+            println("프로그램 재개가 준비되었습니까? (y/n) : ")
         } while (BufferedReader(InputStreamReader(System.`in`)).readLine() != "y")
     }
 
@@ -358,7 +388,7 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
                     (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 1.0 &&
                     price < balance && 500000 <= balance) {
                 val boughtQuantity = if (price > 500000) 1 else 500000 / price
-                balance = buy(driver, stock, boughtQuantity, balance, user, pw, email)
+                balance = buy(driver, stock, price, boughtQuantity, balance, user, pw, email)
             }
             // sell - 데드크로스
             else if (stock.quantity > 0 && lastDay20 < lastDay5 && current5 < current20 &&
@@ -366,94 +396,97 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
                 (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.005) {
                 val soldQuantity = stock.quantity
                 stock.lastSoldPoint = (price - stock.averagePrice) / stock.averagePrice.toDouble() * 100
-                balance = sell(driver, stock, soldQuantity, balance, user, pw, email)
+                balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
             }
             // sell : +4% 이익
             else if (stock.quantity > 0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.04 &&
                     stock.lastSoldPoint < 4.0) {
                 val soldQuantity = (stock.quantity * 1 / 7).coerceAtLeast(1)
                 stock.lastSoldPoint = 4.0
-                balance = sell(driver, stock, soldQuantity, balance, user, pw, email)
+                balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
             }
             // sell : +6% 이익
             else if (stock.quantity > 0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.06 &&
                     stock.lastSoldPoint < 6.0) {
                 val soldQuantity = (stock.quantity * 1 / 6).coerceAtLeast(1)
                 stock.lastSoldPoint = 6.0
-                balance = sell(driver, stock, soldQuantity, balance, user, pw, email)
+                balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
             }
             // sell : +8% 이익
             else if (stock.quantity > 0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.08 &&
                     stock.lastSoldPoint < 8.0) {
                 val soldQuantity = (stock.quantity * 1 / 5).coerceAtLeast(1)
                 stock.lastSoldPoint = 8.0
-                balance = sell(driver, stock, soldQuantity, balance, user, pw, email)
+                balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
             }
             // sell : +10% 이익
             else if (stock.quantity > 0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.1 &&
                     stock.lastSoldPoint < 10.0) {
                 val soldQuantity = (stock.quantity * 1 / 4).coerceAtLeast(1)
                 stock.lastSoldPoint = 10.0
-                balance = sell(driver, stock, soldQuantity, balance, user, pw, email)
+                balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
             }
             // sell : +12% 이익
             else if (stock.quantity > 0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.12 &&
                     stock.lastSoldPoint < 12.0) {
                 val soldQuantity = (stock.quantity * 1 / 3).coerceAtLeast(1)
                 stock.lastSoldPoint = 12.0
-                balance = sell(driver, stock, soldQuantity, balance, user, pw, email)
+                balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
             }
             // sell : +14% 이익
             else if (stock.quantity > 0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.14 &&
                     stock.lastSoldPoint < 14.0) {
                 val soldQuantity = (stock.quantity * 1 / 2).coerceAtLeast(1)
                 stock.lastSoldPoint = 14.0
-                balance = sell(driver, stock, soldQuantity, balance, user, pw, email)
+                balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
             }
             // sell : +16% 이익
             else if (stock.quantity > 0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.16 &&
                     stock.lastSoldPoint < 16.0) {
                 val soldQuantity = (stock.quantity * 1 / 1).coerceAtLeast(1)
                 stock.lastSoldPoint = 16.0
-                balance = sell(driver, stock, soldQuantity, balance, user, pw, email)
+                balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
             }
+                /*
             // stop loss : -8% 하락
             else if (stock.quantity > 0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() < -0.08) {
                 val soldQuantity = stock.quantity
                 stock.lastSoldPoint = -8.0
                 balance = sell(driver, stock, soldQuantity, balance, user, pw, email)
             }
+                 */
+                // TODO: 물타기 기능 추가 -> 매수평균가보다 현재가가 10% 이상 낮으면서 이평선 상향돌파 할 때 추가매수.
             // sell : 오래된 주식들 매도
-            else if (stock.quantity > 0 && (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 14.0) {
+            else if (stock.quantity > 0 && (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 7.0) {
 
                 if (stock.lastSoldPoint == 0.0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.0225) {
                     val soldQuantity = (stock.quantity * 1 / 7).coerceAtLeast(1)
                     stock.lastSoldPoint = 4.0
-                    balance = sell(driver, stock, soldQuantity, balance, user, pw, email)
+                    balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
                 } else if (stock.lastSoldPoint == 4.0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.04) {
                     val soldQuantity = (stock.quantity * 1 / 6).coerceAtLeast(1)
                     stock.lastSoldPoint = 6.0
-                    balance = sell(driver, stock, soldQuantity, balance, user, pw, email)
+                    balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
                 } else if (stock.lastSoldPoint == 6.0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.04) {
                     val soldQuantity = (stock.quantity * 1 / 5).coerceAtLeast(1)
                     stock.lastSoldPoint = 8.0
-                    balance = sell(driver, stock, soldQuantity, balance, user, pw, email)
+                    balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
                 } else if (stock.lastSoldPoint == 8.0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.04) {
                     val soldQuantity = (stock.quantity * 1 / 4).coerceAtLeast(1)
                     stock.lastSoldPoint = 10.0
-                    balance = sell(driver, stock, soldQuantity, balance, user, pw, email)
+                    balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
                 } else if (stock.lastSoldPoint == 10.0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.04) {
                     val soldQuantity = (stock.quantity * 1 / 3).coerceAtLeast(1)
                     stock.lastSoldPoint = 12.0
-                    balance = sell(driver, stock, soldQuantity, balance, user, pw, email)
+                    balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
                 } else if (stock.lastSoldPoint == 12.0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.04) {
                     val soldQuantity = (stock.quantity * 1 / 2).coerceAtLeast(1)
                     stock.lastSoldPoint = 14.0
-                    balance = sell(driver, stock, soldQuantity, balance, user, pw, email)
+                    balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
                 } else if (stock.lastSoldPoint == 14.0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.04) {
                     val soldQuantity = (stock.quantity * 1 / 1).coerceAtLeast(1)
                     stock.lastSoldPoint = 16.0
-                    balance = sell(driver, stock, soldQuantity, balance, user, pw, email)
+                    balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
                 }
             }
         }
