@@ -4,6 +4,7 @@ import org.jsoup.Jsoup
 import org.openqa.selenium.By
 import org.openqa.selenium.chrome.ChromeDriver
 import org.openqa.selenium.chrome.ChromeOptions
+import org.openqa.selenium.interactions.Actions
 import org.openqa.selenium.support.ui.ExpectedConditions
 import org.openqa.selenium.support.ui.WebDriverWait
 import stock.Stock
@@ -197,8 +198,8 @@ fun buy(driver: ChromeDriver, stock: Stock, expectedPrice: Int, quantity: Int, b
 
             if (id.contains("Ok")) {
                 //waitForClickableById(driver, id)
-                button.click()
-                //Actions(driver).moveToElement(button).click(button).perform()
+                //button.click()
+                Actions(driver).moveToElement(button).click(button).perform()
                 break
             }
         }
@@ -272,8 +273,8 @@ fun sell(driver: ChromeDriver, stock: Stock, expectedPrice: Int, quantity: Int, 
 
             if (id.contains("Ok")) {
                 //waitForClickableById(driver, id)
-                button.click()
-                //Actions(driver).moveToElement(button).click(button).perform()
+                //button.click()
+                Actions(driver).moveToElement(button).click(button).perform()
                 break
             }
         }
@@ -382,6 +383,8 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
                 println("${stock.name} 단기MA: ${current5} 중기MA: ${current20}")
             }
 
+            val currentProfit: Double = (price - stock.averagePrice) / stock.averagePrice.toDouble()
+
             // buy - 골든크로스
             if (stock.quantity == 0 && dayBeforeLastDay5 < dayBeforeLastDay20 && lastDay5 < lastDay20 &&
                     dayBeforeLastDay5 < lastDay5 && lastDay5 < current5 && current20 < current5 &&
@@ -393,58 +396,91 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
             // sell - 데드크로스
             else if (stock.quantity > 0 && lastDay20 < lastDay5 && current5 < current20 &&
                 (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 1.0 &&
-                (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.005) {
+                currentProfit > 0.005) {
                 val soldQuantity = stock.quantity
-                stock.lastSoldPoint = (price - stock.averagePrice) / stock.averagePrice.toDouble() * 100
-                balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
-            }
-            // sell : +4% 이익
-            else if (stock.quantity > 0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.04 &&
-                    stock.lastSoldPoint < 4.0) {
-                val soldQuantity = (stock.quantity * 1 / 7).coerceAtLeast(1)
-                stock.lastSoldPoint = 4.0
-                balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
-            }
-            // sell : +6% 이익
-            else if (stock.quantity > 0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.06 &&
-                    stock.lastSoldPoint < 6.0) {
-                val soldQuantity = (stock.quantity * 1 / 6).coerceAtLeast(1)
-                stock.lastSoldPoint = 6.0
-                balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
-            }
-            // sell : +8% 이익
-            else if (stock.quantity > 0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.08 &&
-                    stock.lastSoldPoint < 8.0) {
-                val soldQuantity = (stock.quantity * 1 / 5).coerceAtLeast(1)
-                stock.lastSoldPoint = 8.0
-                balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
-            }
-            // sell : +10% 이익
-            else if (stock.quantity > 0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.1 &&
-                    stock.lastSoldPoint < 10.0) {
-                val soldQuantity = (stock.quantity * 1 / 4).coerceAtLeast(1)
-                stock.lastSoldPoint = 10.0
-                balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
-            }
-            // sell : +12% 이익
-            else if (stock.quantity > 0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.12 &&
-                    stock.lastSoldPoint < 12.0) {
-                val soldQuantity = (stock.quantity * 1 / 3).coerceAtLeast(1)
-                stock.lastSoldPoint = 12.0
-                balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
-            }
-            // sell : +14% 이익
-            else if (stock.quantity > 0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.14 &&
-                    stock.lastSoldPoint < 14.0) {
-                val soldQuantity = (stock.quantity * 1 / 2).coerceAtLeast(1)
-                stock.lastSoldPoint = 14.0
+                stock.lastSoldPoint = currentProfit * 100
                 balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
             }
             // sell : +16% 이익
-            else if (stock.quantity > 0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.16 &&
-                    stock.lastSoldPoint < 16.0) {
-                val soldQuantity = (stock.quantity * 1 / 1).coerceAtLeast(1)
+            else if (stock.quantity > 0 && currentProfit > 0.16 && stock.lastSoldPoint < 16.0) {
+                // lastSoldPoint와 현재수익률 간의 갭이 있을 때 한 번에 팔기 위한 방법
+                val bias = when (stock.lastSoldPoint) {
+                    0.0 -> 6
+                    4.0 -> 5
+                    6.0 -> 4
+                    8.0 -> 3
+                    10.0 -> 2
+                    12.0 -> 1
+                    else -> 0
+                }
+                val soldQuantity = (stock.quantity * (1 + bias)/ (1 + bias)).coerceAtLeast(1)
                 stock.lastSoldPoint = 16.0
+                balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
+            }
+            // sell : +14% 이익
+            else if (stock.quantity > 0 && currentProfit > 0.14 && stock.lastSoldPoint < 14.0) {
+                val bias = when (stock.lastSoldPoint) {
+                    0.0 -> 5
+                    4.0 -> 4
+                    6.0 -> 3
+                    8.0 -> 2
+                    10.0 -> 1
+                    else -> 0
+                }
+                val soldQuantity = (stock.quantity * (1 + bias) / (2 + bias)).coerceAtLeast(1)
+                stock.lastSoldPoint = 14.0
+                balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
+            }
+            // sell : +12% 이익
+            else if (stock.quantity > 0 && currentProfit > 0.12 && stock.lastSoldPoint < 12.0) {
+                val bias = when (stock.lastSoldPoint) {
+                    0.0 -> 4
+                    4.0 -> 3
+                    6.0 -> 2
+                    8.0 -> 1
+                    else -> 0
+                }
+                val soldQuantity = (stock.quantity * (1 + bias) / (3 + bias)).coerceAtLeast(1)
+                stock.lastSoldPoint = 12.0
+                balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
+            }
+            // sell : +10% 이익
+            else if (stock.quantity > 0 && currentProfit > 0.10 && stock.lastSoldPoint < 10.0) {
+                val bias = when (stock.lastSoldPoint) {
+                    0.0 -> 3
+                    4.0 -> 2
+                    6.0 -> 1
+                    else -> 0
+                }
+                val soldQuantity = (stock.quantity * (1 + bias) / (4 + bias)).coerceAtLeast(1)
+                stock.lastSoldPoint = 10.0
+                balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
+            }
+            // sell : +8% 이익
+            else if (stock.quantity > 0 && currentProfit > 0.08 && stock.lastSoldPoint < 8.0) {
+                val bias = when (stock.lastSoldPoint) {
+                    0.0 -> 2
+                    4.0 -> 1
+                    else -> 0
+                }
+                val soldQuantity = (stock.quantity * (1 + bias) / (5 + bias)).coerceAtLeast(1)
+                stock.lastSoldPoint = 8.0
+                balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
+            }
+            // sell : +6% 이익
+            else if (stock.quantity > 0 && currentProfit > 0.06 && stock.lastSoldPoint < 6.0) {
+                val bias = when (stock.lastSoldPoint) {
+                    0.0 -> 1
+                    else -> 0
+                }
+                val soldQuantity = (stock.quantity * (1 + bias) / (6 + bias)).coerceAtLeast(1)
+                stock.lastSoldPoint = 6.0
+                balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
+            }
+            // sell : +4% 이익
+            else if (stock.quantity > 0 && currentProfit > 0.04 && stock.lastSoldPoint < 4.0) {
+                val soldQuantity = (stock.quantity * 1 / 7).coerceAtLeast(1)
+                stock.lastSoldPoint = 4.0
                 balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
             }
                 /*
@@ -459,31 +495,31 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
             // sell : 오래된 주식들 매도
             else if (stock.quantity > 0 && (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 7.0) {
 
-                if (stock.lastSoldPoint == 0.0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.0225) {
+                if (stock.lastSoldPoint == 0.0 && currentProfit > 0.0225) {
                     val soldQuantity = (stock.quantity * 1 / 7).coerceAtLeast(1)
                     stock.lastSoldPoint = 4.0
                     balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
-                } else if (stock.lastSoldPoint == 4.0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.04) {
+                } else if (stock.lastSoldPoint == 4.0 && currentProfit > 0.04) {
                     val soldQuantity = (stock.quantity * 1 / 6).coerceAtLeast(1)
                     stock.lastSoldPoint = 6.0
                     balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
-                } else if (stock.lastSoldPoint == 6.0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.04) {
+                } else if (stock.lastSoldPoint == 6.0 && currentProfit > 0.04) {
                     val soldQuantity = (stock.quantity * 1 / 5).coerceAtLeast(1)
                     stock.lastSoldPoint = 8.0
                     balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
-                } else if (stock.lastSoldPoint == 8.0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.04) {
+                } else if (stock.lastSoldPoint == 8.0 && currentProfit > 0.04) {
                     val soldQuantity = (stock.quantity * 1 / 4).coerceAtLeast(1)
                     stock.lastSoldPoint = 10.0
                     balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
-                } else if (stock.lastSoldPoint == 10.0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.04) {
+                } else if (stock.lastSoldPoint == 10.0 && currentProfit > 0.04) {
                     val soldQuantity = (stock.quantity * 1 / 3).coerceAtLeast(1)
                     stock.lastSoldPoint = 12.0
                     balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
-                } else if (stock.lastSoldPoint == 12.0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.04) {
+                } else if (stock.lastSoldPoint == 12.0 && currentProfit > 0.04) {
                     val soldQuantity = (stock.quantity * 1 / 2).coerceAtLeast(1)
                     stock.lastSoldPoint = 14.0
                     balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
-                } else if (stock.lastSoldPoint == 14.0 && (price - stock.averagePrice) / stock.averagePrice.toDouble() > 0.04) {
+                } else if (stock.lastSoldPoint == 14.0 && currentProfit > 0.04) {
                     val soldQuantity = (stock.quantity * 1 / 1).coerceAtLeast(1)
                     stock.lastSoldPoint = 16.0
                     balance = sell(driver, stock, price, soldQuantity, balance, user, pw, email)
