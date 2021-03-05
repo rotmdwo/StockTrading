@@ -24,6 +24,15 @@ fun getCurrentPrice(stockCode: String): Int {
     return -1
 }
 
+fun getLastDayPrice(stockCode: String): Int {
+    val url = "https://finance.naver.com/item/sise_day.nhn?code=$stockCode&page=1"
+    val document = Jsoup.connect(url).get()
+    val elems = document.getElementsByClass("tah p11") // 숫자들을 가진 태그
+
+    return if (getPriceWithoutComma(elems[1].text()) != 0) getPriceWithoutComma(elems[5].text())
+    else getPriceWithoutComma(elems[6].text())
+}
+
 fun getCodesTop50(): ArrayList<String> { // 시가총액 상위 50개 종목의 코드 반환
     val url = "https://finance.naver.com/sise/sise_market_sum.nhn"
     val document = Jsoup.connect(url).get()
@@ -49,6 +58,31 @@ fun getCodesTopKospiKosdaq200(): ArrayList<Stock> {
 
     for (sosok in 0 .. 1) { // KOSPI: sosok 0, KOSDAQ: sosok 1
         for (page in 1 .. 4) {
+            val url = baseUrl + "sosok=$sosok&page=$page"
+            val document = Jsoup.connect(url).get()
+            val tltles = document.getElementsByClass("tltle") // 종목정보 가진 클래스
+
+            for (i in 0 until tltles.size) {
+                val elem = tltles[i]
+                val company = elem.text()
+                val href = elem.attr("href")
+                val code = href.substring(href.indexOf('=') + 1)
+
+                val stock = Stock(code, company, 0, 0, 0.0, System.currentTimeMillis())
+                arrayList.add(stock)
+            }
+        }
+    }
+
+    return arrayList
+}
+
+fun getCodesTopKospiKosdaq(num: Int): ArrayList<Stock> {
+    val baseUrl = "https://finance.naver.com/sise/sise_market_sum.nhn?"
+    val arrayList = ArrayList<Stock>(400)
+
+    for (sosok in 0 .. 1) { // KOSPI: sosok 0, KOSDAQ: sosok 1
+        for (page in 1 .. (num / 50)) {
             val url = baseUrl + "sosok=$sosok&page=$page"
             val document = Jsoup.connect(url).get()
             val tltles = document.getElementsByClass("tltle") // 종목정보 가진 클래스

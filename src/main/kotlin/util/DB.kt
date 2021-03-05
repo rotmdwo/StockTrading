@@ -15,6 +15,19 @@ fun addFirstStocksInfoToDB(user: String, pw: String) {
     }
 }
 
+fun addNewStocksInfoToDB(num: Int, user: String, pw: String) {
+    if (num % 50 != 0) {
+        println("50 단위로 num을 설정해주세요.")
+        return
+    }
+
+    val stocks = getCodesTopKospiKosdaq(num)
+
+    for (i in 0 until stocks.size) {
+        addStockInfoToDB(stocks[i], user, pw)
+    }
+}
+
 fun addLogToDB(stock: Stock, type: String, price: Int, quantity: Int, profit: Int?, user: String, pw: String): Int {
     Class.forName("com.mysql.cj.jdbc.Driver")
     val conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/STOCK_TRADING", user, pw)
@@ -52,6 +65,26 @@ fun getStockQuantityFromDB(stockCode: String, user: String, pw: String): Int {
     conn.close()
 
     return quantity
+}
+
+fun addStockInfoToDB(stock: Stock, user: String, pw: String) {
+    Class.forName("com.mysql.cj.jdbc.Driver")
+    val conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/STOCK_TRADING", user, pw)
+
+    val sql = "INSERT INTO TB_STOCK (CODE, NAME, QUANTITY, AVERAGE_PRICE, LAST_SOLD_POINT, LAST_TRADING_DATE) " +
+            "SELECT ?, ?, ?, ?, ?, ? FROM DUAL WHERE NOT EXISTS (SELECT * FROM TB_STOCK WHERE CODE = ?)"
+    val stmt = conn.prepareStatement(sql)
+    stmt.setString(1, stock.code)
+    stmt.setString(2, stock.name)
+    stmt.setInt(3, stock.quantity)
+    stmt.setInt(4, stock.averagePrice)
+    stmt.setDouble(5, stock.lastSoldPoint)
+    stmt.setTimestamp(6, Timestamp(stock.lastTradingDate))
+    stmt.setString(7, stock.code)
+
+    stmt.executeUpdate()
+
+    conn.close()
 }
 
 fun updateStockQuantityAtDB(stock: Stock, user: String, pw: String): Int {

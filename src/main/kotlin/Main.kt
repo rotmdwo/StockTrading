@@ -40,6 +40,11 @@ fun main() {
         while (command != "quit") {
             when (command) {
                 "test" -> test()
+                "add new stocks" -> {
+                    print("코스닥, 코스피 상위 몇 종목까지?: ")
+                    val num = br.readLine().toInt()
+                    addNewStocksInfoToDB(num, id, pw)
+                }
                 "access" -> {
                     driver = accessToMiraeWTS(false)
                     balance = getBalance(driver!!)
