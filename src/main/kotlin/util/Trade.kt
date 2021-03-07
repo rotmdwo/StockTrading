@@ -133,6 +133,8 @@ fun saveHtmlAsTxt(driver: ChromeDriver, path: String) {
 fun test() {
     println(getCurrentPrice("307950"))
     println(getLastDayPrice("307950"))
+
+
 }
 
 // 매수 가격 반환
@@ -334,26 +336,32 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
 
     val lastDayMA = Array(stocks.size, {IntArray(2)})
     val dayBeforeLastDayMA = Array(stocks.size, {IntArray(2)})
-    val isNewStockArray = BooleanArray(stocks.size, {false})
+    val isStockToConsiderArray = BooleanArray(stocks.size, {true})
 
     for (i in 0 until stocks.size) {
-        isNewStockArray[i] = isNewStock(stocks[i].code)
+        isStockToConsiderArray[i] = !isNewStock(stocks[i].code)
     }
 
     // 전날 기준 이동평균값 가져옴
     for (i in 0 until stocks.size) {
-        if (isNewStockArray[i]) continue
+        if (!isStockToConsiderArray[i]) continue
         val lastDayMA5 = getMovingAverageOfLastDay5(stocks[i].code)
         val lastDayMA20 = getMovingAverageOfLastDay20(stocks[i].code)
         lastDayMA[i] = intArrayOf(lastDayMA5, lastDayMA20)
+
+        // buy를 고려할 가치가 없는 주식
+        if (lastDayMA20 < lastDayMA5 && stocks[i].quantity == 0) isStockToConsiderArray[i] = false
     }
 
     // 이틀전 기준 이동평균값 가져옴
     for (i in 0 until stocks.size) {
-        if (isNewStockArray[i]) continue
+        if (!isStockToConsiderArray[i]) continue
         val dayBeforeLastDayMA5 = getMovingAverageOfDayBeforeLastDay5(stocks[i].code)
         val dayBeforeLastDayMA20 = getMovingAverageOfDayBeforeLastDay20(stocks[i].code)
         dayBeforeLastDayMA[i] = intArrayOf(dayBeforeLastDayMA5, dayBeforeLastDayMA20)
+
+        // buy를 고려할 가치가 없는 주식
+        if (lastDayMA[i][0] < dayBeforeLastDayMA5 && stocks[i].quantity == 0) isStockToConsiderArray[i] = false
     }
 
     // 개장전 대기
@@ -363,8 +371,10 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
     }
 
     while (openingTime <= currentTime && currentTime < closingTime) {
+        println("정상 작동중.. (${currentTime})")
+
         for (i in 0 until stocks.size) {
-            if (isNewStockArray[i]) continue
+            if (!isStockToConsiderArray[i]) continue
 
             val stock = stocks[i]
             val dayBeforeLastDay5 = dayBeforeLastDayMA[i][0]
@@ -375,11 +385,14 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
             val current20 = getMovingAverage20(stock.code)
             val price = getCurrentPrice(stock.code)
 
+            /*
             val diff = (current5 - current20)/current20.toDouble()
             if (-0.005 < diff && diff < 0.0) {
                 println("${stock.name} 단기MA: ${current5} 중기MA: ${current20}")
             }
+             */
 
+            // 현재 기준 수익률
             val currentProfit: Double = (price - stock.averagePrice) / stock.averagePrice.toDouble()
 
             // buy - 골든크로스
