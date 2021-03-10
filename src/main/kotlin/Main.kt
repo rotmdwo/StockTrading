@@ -39,7 +39,7 @@ fun main() {
     try {
         while (command != "quit") {
             when (command) {
-                "test" -> test()
+                "test" -> test(driver!!)
                 "add new stocks" -> {
                     print("코스닥, 코스피 상위 몇 종목까지?: ")
                     val num = br.readLine().toInt()

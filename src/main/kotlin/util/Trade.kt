@@ -54,10 +54,13 @@ fun accessToMiraeWTS(isRemote: Boolean): ChromeDriver {
         Thread.sleep(120000L)
     }
 
+    //saveHtmlAsTxt(driver, "20210308.txt")
+
     // 트레이딩 탭 클릭
     val quick_menu = driver.findElementByClassName("quick_menu")
     val links = quick_menu.findElements(By.tagName("a"))
-    links[3].click()
+    //links[3].click() // 2021/03/08 html 코드 수정됨
+    links[1].click()
 
     // 새로 띄어지는 창으로 focus 옮김
     val windows = driver.windowHandles
@@ -130,10 +133,7 @@ fun saveHtmlAsTxt(driver: ChromeDriver, path: String) {
     fWriter.close()
 }
 
-fun test() {
-    println(getCurrentPrice("307950"))
-    println(getLastDayPrice("307950"))
-
+fun test(driver: ChromeDriver) {
 
 }
 
@@ -188,6 +188,7 @@ fun buy(driver: ChromeDriver, stock: Stock, expectedPrice: Int, quantity: Int, b
 
     val newBalance = updateDbAfterBuy(stock, quantity, price, balance, user, pw, email)
 
+    Thread.sleep(3000L)
     // 확인버튼의 랜덤 id 해결책
     try {
         val buttons = driver.findElementsByTagName("button")
@@ -264,6 +265,7 @@ fun sell(driver: ChromeDriver, stock: Stock, expectedPrice: Int, quantity: Int, 
 
     val newBalance = updateDbAfterSell(stock, quantity, price, lastSoldPoint, balance, user, pw, email)
 
+    Thread.sleep(3000L)
     try {
         val buttons = driver.findElementsByTagName("button")
         for (button in buttons) {

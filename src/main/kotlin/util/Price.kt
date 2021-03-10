@@ -165,7 +165,7 @@ fun getMovingAverage5(stockCode: String): Int {
 
     var index = 0
     while (num < 5) {
-        if (elems[index].text() == "0") { // 전일비 0인 것 거름
+        if (elems[index].text() == "0" && index != 5) { // 전일비 0인 것 거름
             numOf0_bias++
             index++
             continue
@@ -193,7 +193,7 @@ fun getMovingAverageOfLastDay5(stockCode: String): Int {
 
     var index = 0
     while (num < 5) {
-        if (elems[index].text() == "0") { // 전일비 0인 것 거름
+        if (elems[index].text() == "0" && index != 5) { // 전일비 0인 것 거름
             numOf0_bias++
             index++
             continue
@@ -221,7 +221,7 @@ fun getMovingAverageOfDayBeforeLastDay5(stockCode: String): Int {
 
     var index = 0
     while (num < 5) {
-        if (elems[index].text() == "0") { // 전일비 0인 것 거름
+        if (elems[index].text() == "0" && index != 5) { // 전일비 0인 것 거름
             numOf0_bias++
             index++
             continue
@@ -251,7 +251,7 @@ fun getMovingAverage(stockCode: String, days10: Int): Int {
         var numOf0_bias = 0 // 전일비 차가 0이면 <img> 태그가 아닌 <span> 태그로 나와 계산 잘못 되는 것 방지
 
         for (j in 0 until elems.size) {
-            if (elems[j].text() == "0") { // 전일비 0인 것 거름
+            if (elems[j].text() == "0" && j != 5) { // 전일비 0인 것 거름
                 numOf0_bias++
                 continue
             }
@@ -279,7 +279,7 @@ fun getMovingAverageOfLastDay(stockCode: String, days10: Int): Int {
         var numOf0_bias = 0 // 전일비 차가 0이면 <img> 태그가 아닌 <span> 태그로 나와 계산 잘못 되는 것 방지
 
         for (j in 0 until elems.size) {
-            if (elems[j].text() == "0") { // 전일비 0인 것 거름
+            if (elems[j].text() == "0" && j != 5) { // 전일비 0인 것 거름
                 numOf0_bias++
                 continue
             }
@@ -314,7 +314,7 @@ fun getMovingAverageOfDayBeforeLastDay(stockCode: String, days10: Int): Int {
         var numOf0_bias = 0 // 전일비 차가 0이면 <img> 태그가 아닌 <span> 태그로 나와 계산 잘못 되는 것 방지
 
         for (j in 0 until elems.size) {
-            if (elems[j].text() == "0") { // 전일비 0인 것 거름
+            if (elems[j].text() == "0" && j != 5) { // 전일비 0인 것 거름
                 numOf0_bias++
                 continue
             }
