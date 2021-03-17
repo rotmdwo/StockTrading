@@ -2,6 +2,7 @@ package util
 
 import org.jsoup.Jsoup
 import org.openqa.selenium.By
+import org.openqa.selenium.Keys
 import org.openqa.selenium.chrome.ChromeDriver
 import org.openqa.selenium.chrome.ChromeOptions
 import org.openqa.selenium.interactions.Actions
@@ -15,7 +16,7 @@ import java.text.SimpleDateFormat
 import kotlin.collections.ArrayList
 
 fun accessToMiraeWTS(isRemote: Boolean): ChromeDriver {
-    System.setProperty("webdriver.chrome.driver", "/Users/sungjaelee/Downloads/chromedriver")
+    System.setProperty("webdriver.chrome.driver", "/Users/sungjaelee/Downloads/chromedriver88")
     val options = ChromeOptions()
     options.setCapability("ignoreProtectedModeSettings", true)
     val driver = ChromeDriver(options)
@@ -166,7 +167,6 @@ fun buy(driver: ChromeDriver, stock: Stock, expectedPrice: Int, quantity: Int, b
         driver.findElementById("confirm").click()
 
         waitForDisplayingById(driver, "grid_diax0002")
-        saveHtmlAsTxt(driver, "html_bought.txt")
 
     } catch (e: Exception) {
         email.notifyError("프로그램 중단됨.<br>확인 또는 작업 취소 후 재가동 해주세요.")
@@ -196,9 +196,11 @@ fun buy(driver: ChromeDriver, stock: Stock, expectedPrice: Int, quantity: Int, b
             val id = button.getAttribute("id")
 
             if (id.contains("Ok")) {
+                saveHtmlAsTxt(driver, "html_bought.txt")
                 //waitForClickableById(driver, id)
                 //button.click()
-                Actions(driver).moveToElement(button).click(button).perform()
+                button.sendKeys(Keys.ENTER)
+                //Actions(driver).moveToElement(button).click(button).perform()
                 break
             }
         }
@@ -243,7 +245,6 @@ fun sell(driver: ChromeDriver, stock: Stock, expectedPrice: Int, quantity: Int, 
         driver.findElementById("confirm").click()
 
         waitForDisplayingById(driver, "grid_diax0002")
-        saveHtmlAsTxt(driver, "html_sold.txt")
 
     } catch (e: Exception) {
         email.notifyError("프로그램 중단됨.<br>확인 또는 작업 취소 후 재가동 해주세요.")
@@ -272,9 +273,11 @@ fun sell(driver: ChromeDriver, stock: Stock, expectedPrice: Int, quantity: Int, 
             val id = button.getAttribute("id")
 
             if (id.contains("Ok")) {
+                saveHtmlAsTxt(driver, "html_sold.txt")
                 //waitForClickableById(driver, id)
                 //button.click()
-                Actions(driver).moveToElement(button).click(button).perform()
+                button.sendKeys(Keys.ENTER)
+                //Actions(driver).moveToElement(button).click(button).perform()
                 break
             }
         }
@@ -340,6 +343,8 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
     val dayBeforeLastDayMA = Array(stocks.size, {IntArray(2)})
     val isStockToConsiderArray = BooleanArray(stocks.size, {true})
 
+    var enoughBalance = true // 돈이 부족하였다가 장중 매도 후 돈이 다시 충분해진 후 매수하는 일을 방지하기 위함
+
     for (i in 0 until stocks.size) {
         isStockToConsiderArray[i] = !isNewStock(stocks[i].code)
     }
@@ -375,6 +380,8 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
     while (openingTime <= currentTime && currentTime < closingTime) {
         println("정상 작동중.. (${currentTime})")
 
+        if (balance < 500000) enoughBalance = false
+
         for (i in 0 until stocks.size) {
             if (!isStockToConsiderArray[i]) continue
 
@@ -402,7 +409,7 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
                     dayBeforeLastDay5 < lastDay5 && lastDay5 < current5 && current20 < current5 &&
                     current5 < price && getLastDayPrice(stock.code) < price &&
                     (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 1.0 &&
-                    price < balance && 500000 <= balance) {
+                    price < balance && 500000 <= balance && enoughBalance) {
                 val boughtQuantity = if (price > 500000) 1 else 500000 / price
                 balance = buy(driver, stock, price, boughtQuantity, balance, user, pw, email)
             }
@@ -569,11 +576,18 @@ fun isNewStock(stockCode: String): Boolean {
     document = Jsoup.connect(url).get()
     elems = document.getElementsByClass("tah p11") // 숫자들을 가진 태그
 
+    for (i in 1 until 5) {
+        if (elems[i].text() != "0") {
+            return false
+        }
+    }
+    /*
     for (i in 0 until 60) {
         if (i % 6 == 1 && elems[i].text() != "0") {
             return false
         }
     }
+     */
 
     return true
 }
