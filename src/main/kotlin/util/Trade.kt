@@ -3,6 +3,7 @@ package util
 import org.jsoup.Jsoup
 import org.openqa.selenium.By
 import org.openqa.selenium.Keys
+import org.openqa.selenium.StaleElementReferenceException
 import org.openqa.selenium.chrome.ChromeDriver
 import org.openqa.selenium.chrome.ChromeOptions
 import org.openqa.selenium.interactions.Actions
@@ -188,6 +189,7 @@ fun buy(driver: ChromeDriver, stock: Stock, expectedPrice: Int, quantity: Int, b
 
     val newBalance = updateDbAfterBuy(stock, quantity, price, balance, user, pw, email)
 
+    /*
     Thread.sleep(3000L)
     // 확인버튼의 랜덤 id 해결책
     try {
@@ -211,6 +213,31 @@ fun buy(driver: ChromeDriver, stock: Stock, expectedPrice: Int, quantity: Int, b
         do {
             println("프로그램 재개가 준비되었습니까? (y/n) : ")
         } while (BufferedReader(InputStreamReader(System.`in`)).readLine() != "y")
+    }
+
+     */
+
+    val buttons = driver.findElementsByTagName("button")
+    for (i in 0 until buttons.size) {
+        val id = try {
+            buttons[i].getAttribute("id")
+        } catch (e: StaleElementReferenceException) {
+            continue
+        }
+
+        if (id.contains("Ok")) {
+            try {
+                buttons[i].click()
+            } catch (e: Exception) {
+                //email.notifyError("프로그램 중단됨.<br>확인 또는 작업 취소 후 재가동 해주세요.")
+
+                if (i + 1 == buttons.size) {
+                    do {
+                        println("프로그램 재개가 준비되었습니까? (y/n) : ")
+                    } while (BufferedReader(InputStreamReader(System.`in`)).readLine() != "y")
+                }
+            }
+        }
     }
 
     return newBalance
@@ -266,6 +293,7 @@ fun sell(driver: ChromeDriver, stock: Stock, expectedPrice: Int, quantity: Int, 
 
     val newBalance = updateDbAfterSell(stock, quantity, price, lastSoldPoint, balance, user, pw, email)
 
+    /*
     Thread.sleep(3000L)
     try {
         val buttons = driver.findElementsByTagName("button")
@@ -275,8 +303,8 @@ fun sell(driver: ChromeDriver, stock: Stock, expectedPrice: Int, quantity: Int, 
             if (id.contains("Ok")) {
                 saveHtmlAsTxt(driver, "html_sold.txt")
                 //waitForClickableById(driver, id)
-                //button.click()
-                button.sendKeys(Keys.ENTER)
+                button.click()
+                //button.sendKeys(Keys.ENTER)
                 //Actions(driver).moveToElement(button).click(button).perform()
                 break
             }
@@ -288,6 +316,31 @@ fun sell(driver: ChromeDriver, stock: Stock, expectedPrice: Int, quantity: Int, 
         do {
             println("프로그램 재개가 준비되었습니까? (y/n) : ")
         } while (BufferedReader(InputStreamReader(System.`in`)).readLine() != "y")
+    }
+
+     */
+
+    val buttons = driver.findElementsByTagName("button")
+    for (i in 0 until buttons.size) {
+        val id = try {
+            buttons[i].getAttribute("id")
+        } catch (e: StaleElementReferenceException) {
+            continue
+        }
+
+        if (id.contains("Ok")) {
+            try {
+                buttons[i].click()
+            } catch (e: Exception) {
+                //email.notifyError("프로그램 중단됨.<br>확인 또는 작업 취소 후 재가동 해주세요.")
+
+                if (i + 1 == buttons.size) {
+                    do {
+                        println("프로그램 재개가 준비되었습니까? (y/n) : ")
+                    } while (BufferedReader(InputStreamReader(System.`in`)).readLine() != "y")
+                }
+            }
+        }
     }
 
     return newBalance
@@ -343,7 +396,8 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
     val dayBeforeLastDayMA = Array(stocks.size, {IntArray(2)})
     val isStockToConsiderArray = BooleanArray(stocks.size, {true})
 
-    var enoughBalance = true // 돈이 부족하였다가 장중 매도 후 돈이 다시 충분해진 후 매수하는 일을 방지하기 위함
+    // 돈이 부족하였다가 장중 매도 후 돈이 다시 충분해진 후 매수하는 일을 방지하기 위함
+    var enoughBalance = if (currentTime < "09:10:00") true else false
 
     for (i in 0 until stocks.size) {
         isStockToConsiderArray[i] = !isNewStock(stocks[i].code)
@@ -576,11 +630,13 @@ fun isNewStock(stockCode: String): Boolean {
     document = Jsoup.connect(url).get()
     elems = document.getElementsByClass("tah p11") // 숫자들을 가진 태그
 
-    for (i in 1 until 5) {
-        if (elems[i].text() != "0") {
-            return false
+    var numOfZeros = 0
+    for (i in 1 until elems.size) {
+        if (elems[i].text() == "0") {
+            numOfZeros++
         }
     }
+    if (numOfZeros < 5) return false
     /*
     for (i in 0 until 60) {
         if (i % 6 == 1 && elems[i].text() != "0") {

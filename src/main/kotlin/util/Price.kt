@@ -190,7 +190,7 @@ fun getMovingAverageOfLastDay5(stockCode: String): Int {
     val elems = document.getElementsByClass("tah p11") // 숫자들을 가진 태그
 
     var numOf0_bias = 0 // 전일비 차가 0이면 <img> 태그가 아닌 <span> 태그로 나와 계산 잘못 되는 것 방지
-
+    println(stockCode)
     var index = 0
     while (num < 5) {
         if (elems[index].text() == "0" && index != 5) { // 전일비 0인 것 거름
