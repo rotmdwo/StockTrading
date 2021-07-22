@@ -63,6 +63,16 @@ fun main() {
                         println("먼저 access 명령어를 통해 WTS에 접속해주세요.")
                     }
                 }
+                "email" -> {
+                    Email(emailPassword)
+                        .create()
+                        .from("rotmdehf@naver.com", "이승재")
+                        .to("rotmdehf@gmail.com")
+                        .content("테스트")
+                        .attachFile("/Users/sungjaelee/Desktop/Kotlin Practice/StockTrading/build.gradle")
+                        .send()
+                    //Email(emailPassword).sendEmailWithFile("test", "test!", "/Users/sungjaelee/Desktop/Kotlin Practice/StockTrading/build.gradle")
+                }
                 //"buy" -> println(buy(driver!!, "027740", 1))
                 //"sell" -> println(sell(driver!!, "027740", 1))
                 else -> println("지원하지 않는 명령어입니다.")
