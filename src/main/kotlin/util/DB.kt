@@ -15,6 +15,52 @@ fun addFirstStocksInfoToDB(user: String, pw: String) {
     }
 }
 
+fun rebalanceStocksInDB(user: String, pw: String) {
+    val newStocks = getCodesTopKospiKosdaq200()
+    val oldStocks = getAllStocksInfoFromDB(user, pw)
+
+    // 먼저 200위 밖으로 나간 거 제거
+    for (i in 0 until oldStocks.size) {
+        val oldStock = oldStocks[i]
+        var mustKeep = false
+
+        // 수량 남아있으면 제외
+        if (oldStock.quantity != 0) continue
+
+        for (j in 0 until newStocks.size) {
+            val newStock = newStocks[j]
+            if (oldStock.code == newStock.code) {
+                mustKeep = true
+                break
+            }
+        }
+
+        if (!mustKeep) {
+            deleteStockInfoFromDB(oldStock, user, pw)
+            println("리밸런싱: 종목 제거 - ${oldStock.code} ${oldStock.name}")
+        }
+    }
+
+    // 새로 200위 안에 들어온 거 추가
+    for (i in 0 until newStocks.size) {
+        val newStock = newStocks[i]
+        var alreadyExist = false
+
+        for (j in 0 until oldStocks.size) {
+            val oldStock = oldStocks[j]
+            if (oldStock.code == newStock.code) {
+                alreadyExist = true
+                break
+            }
+        }
+
+        if (!alreadyExist) {
+            updateStockQuantityAtDB(newStock, user, pw)
+            println("리밸런싱: 종목 추가 - ${newStock.code} ${newStock.name}")
+        }
+    }
+}
+
 fun addNewStocksInfoToDB(num: Int, user: String, pw: String) {
     if (num % 50 != 0) {
         println("50 단위로 num을 설정해주세요.")
@@ -81,6 +127,19 @@ fun addStockInfoToDB(stock: Stock, user: String, pw: String) {
     stmt.setDouble(5, stock.lastSoldPoint)
     stmt.setTimestamp(6, Timestamp(stock.lastTradingDate))
     stmt.setString(7, stock.code)
+
+    stmt.executeUpdate()
+
+    conn.close()
+}
+
+fun deleteStockInfoFromDB(stock: Stock, user: String, pw: String) {
+    Class.forName("com.mysql.cj.jdbc.Driver")
+    val conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/STOCK_TRADING", user, pw)
+
+    val sql = "DELETE FROM TB_STOCK WHERE CODE = ?"
+    val stmt = conn.prepareStatement(sql)
+    stmt.setString(1, stock.code)
 
     stmt.executeUpdate()
 

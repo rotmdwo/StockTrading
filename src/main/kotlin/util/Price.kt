@@ -7,6 +7,16 @@ fun getPriceWithoutComma(price: String): Int { // 숫자 사이에 ',' 들어 �
     return price.replace(",","").toInt()
 }
 
+fun isKospiDown(): Boolean {
+    val url = "https://finance.naver.com/sise/sise_index.naver?code=KOSPI"
+    val document = Jsoup.connect(url).get()
+    val change_value_and_rate = document.getElementById("change_value_and_rate")
+    val str = change_value_and_rate.text()
+    val percentage = str.substring(str.indexOf(" ") + 1, str.indexOf("%")).toFloat()
+
+    return percentage < 0
+}
+
 fun getCurrentPrice(stockCode: String): Int {
     val url = "https://finance.naver.com/item/main.nhn?code=${stockCode}"
     val document = Jsoup.connect(url).get()

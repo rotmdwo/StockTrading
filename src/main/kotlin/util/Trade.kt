@@ -18,7 +18,7 @@ import kotlin.collections.ArrayList
 import kotlin.math.roundToLong
 
 fun accessToMiraeWTS(isRemote: Boolean): ChromeDriver {
-    System.setProperty("webdriver.chrome.driver", "/Users/sungjaelee/Downloads/chromedriver90")
+    System.setProperty("webdriver.chrome.driver", "/Users/sungjaelee/Downloads/chromedriver94")
     val options = ChromeOptions()
     options.setCapability("ignoreProtectedModeSettings", true)
     val driver = ChromeDriver(options)
@@ -134,10 +134,6 @@ fun saveHtmlAsTxt(driver: ChromeDriver, path: String) {
     val str = driver.executeScript("return document.documentElement.innerHTML") as String
     fWriter.write(str)
     fWriter.close()
-}
-
-fun test(driver: ChromeDriver) {
-
 }
 
 // 매수 가격 반환
@@ -437,6 +433,7 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
         println("정상 작동중.. (${currentTime})")
 
         if (balance < moneyUnit) enoughBalance = false
+        val isKospiNegative = isKospiDown()
 
         for (i in 0 until stocks.size) {
             if (!isStockToConsiderArray[i]) continue
@@ -465,7 +462,8 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
                     dayBeforeLastDay5 < lastDay5 && lastDay5 < current5 && current20 < current5 &&
                     current5 < price && getLastDayPrice(stock.code) < price &&
                     (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 1.0 &&
-                    price < balance && moneyUnit <= balance && enoughBalance) {
+                    price < balance && moneyUnit <= balance && enoughBalance &&
+                    isKospiNegative) {
                 val boughtQuantity = if (price > moneyUnit) 1 else moneyUnit / price
                 balance = buy(driver, stock, price, boughtQuantity, balance, user, pw, email)
             }
@@ -492,9 +490,9 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
                     0.0 -> 6
                     6.0 -> 5
                     8.0 -> 4
-                    12.0 -> 3
-                    14.0 -> 2
-                    16.0 -> 1
+                    10.0 -> 3
+                    12.0 -> 2
+                    14.0 -> 1
                     else -> 0
                 }
                 val soldQuantity = (stock.quantity * (1 + bias)/ (1 + bias)).coerceAtLeast(1)
@@ -576,42 +574,42 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
             }
                  */
             // sell : 오래된 주식들 매도
-            else if (stock.quantity > 0 && (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 7.0) {
-
-                if (stock.lastSoldPoint == 0.0 && currentProfit > 0.0225) {
-                    val soldQuantity = (stock.quantity * 1 / 7).coerceAtLeast(1)
-                    val lastSoldPoint = 6.0
-                    balance = sell(driver, stock, price, soldQuantity, lastSoldPoint, balance, user, pw, email)
-                } else if (stock.lastSoldPoint == 6.0 && currentProfit > 0.04) {
-                    val soldQuantity = (stock.quantity * 1 / 6).coerceAtLeast(1)
-                    val lastSoldPoint = 8.0
-                    balance = sell(driver, stock, price, soldQuantity, lastSoldPoint, balance, user, pw, email)
-                } else if (stock.lastSoldPoint == 8.0 && currentProfit > 0.04) {
-                    val soldQuantity = (stock.quantity * 1 / 5).coerceAtLeast(1)
-                    val lastSoldPoint = 10.0
-                    balance = sell(driver, stock, price, soldQuantity, lastSoldPoint, balance, user, pw, email)
-                } else if (stock.lastSoldPoint == 10.0 && currentProfit > 0.04) {
-                    val soldQuantity = (stock.quantity * 1 / 4).coerceAtLeast(1)
-                    val lastSoldPoint = 12.0
-                    balance = sell(driver, stock, price, soldQuantity, lastSoldPoint, balance, user, pw, email)
-                } else if (stock.lastSoldPoint == 12.0 && currentProfit > 0.04) {
-                    val soldQuantity = (stock.quantity * 1 / 3).coerceAtLeast(1)
-                    val lastSoldPoint = 14.0
-                    balance = sell(driver, stock, price, soldQuantity, lastSoldPoint, balance, user, pw, email)
-                } else if (stock.lastSoldPoint == 14.0 && currentProfit > 0.04) {
-                    val soldQuantity = (stock.quantity * 1 / 2).coerceAtLeast(1)
-                    val lastSoldPoint = 16.0
-                    balance = sell(driver, stock, price, soldQuantity, lastSoldPoint, balance, user, pw, email)
-                } else if (stock.lastSoldPoint == 16.0 && currentProfit > 0.04) {
-                    val soldQuantity = (stock.quantity * 1 / 1).coerceAtLeast(1)
-                    val lastSoldPoint = 18.0
-                    balance = sell(driver, stock, price, soldQuantity, lastSoldPoint, balance, user, pw, email)
-                } else if (currentProfit > 0.005 && currentProfit < 0.04 && (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 14.0) {
-                    val soldQuantity = (stock.quantity * 1 / 1).coerceAtLeast(1)
-                    val lastSoldPoint = 0.0
-                    balance = sell(driver, stock, price, soldQuantity, lastSoldPoint, balance, user, pw, email)
-                }
-            }
+//            else if (stock.quantity > 0 && (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 7.0) {
+//
+//                if (stock.lastSoldPoint == 0.0 && currentProfit > 0.0225) {
+//                    val soldQuantity = (stock.quantity * 1 / 7).coerceAtLeast(1)
+//                    val lastSoldPoint = 6.0
+//                    balance = sell(driver, stock, price, soldQuantity, lastSoldPoint, balance, user, pw, email)
+//                } else if (stock.lastSoldPoint == 6.0 && currentProfit > 0.04) {
+//                    val soldQuantity = (stock.quantity * 1 / 6).coerceAtLeast(1)
+//                    val lastSoldPoint = 8.0
+//                    balance = sell(driver, stock, price, soldQuantity, lastSoldPoint, balance, user, pw, email)
+//                } else if (stock.lastSoldPoint == 8.0 && currentProfit > 0.04) {
+//                    val soldQuantity = (stock.quantity * 1 / 5).coerceAtLeast(1)
+//                    val lastSoldPoint = 10.0
+//                    balance = sell(driver, stock, price, soldQuantity, lastSoldPoint, balance, user, pw, email)
+//                } else if (stock.lastSoldPoint == 10.0 && currentProfit > 0.04) {
+//                    val soldQuantity = (stock.quantity * 1 / 4).coerceAtLeast(1)
+//                    val lastSoldPoint = 12.0
+//                    balance = sell(driver, stock, price, soldQuantity, lastSoldPoint, balance, user, pw, email)
+//                } else if (stock.lastSoldPoint == 12.0 && currentProfit > 0.04) {
+//                    val soldQuantity = (stock.quantity * 1 / 3).coerceAtLeast(1)
+//                    val lastSoldPoint = 14.0
+//                    balance = sell(driver, stock, price, soldQuantity, lastSoldPoint, balance, user, pw, email)
+//                } else if (stock.lastSoldPoint == 14.0 && currentProfit > 0.04) {
+//                    val soldQuantity = (stock.quantity * 1 / 2).coerceAtLeast(1)
+//                    val lastSoldPoint = 16.0
+//                    balance = sell(driver, stock, price, soldQuantity, lastSoldPoint, balance, user, pw, email)
+//                } else if (stock.lastSoldPoint == 16.0 && currentProfit > 0.04) {
+//                    val soldQuantity = (stock.quantity * 1 / 1).coerceAtLeast(1)
+//                    val lastSoldPoint = 18.0
+//                    balance = sell(driver, stock, price, soldQuantity, lastSoldPoint, balance, user, pw, email)
+//                } else if (currentProfit > 0.005 && currentProfit < 0.04 && (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 14.0) {
+//                    val soldQuantity = (stock.quantity * 1 / 1).coerceAtLeast(1)
+//                    val lastSoldPoint = 0.0
+//                    balance = sell(driver, stock, price, soldQuantity, lastSoldPoint, balance, user, pw, email)
+//                }
+//            }
         }
 
         currentTime = format.format(System.currentTimeMillis())
@@ -623,6 +621,10 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
 
 fun waitForDisplayingById(driver: ChromeDriver, id: String) {
     WebDriverWait(driver, 60).until(ExpectedConditions.presenceOfElementLocated(By.id(id)))
+}
+
+fun waitForDisplayingByClass(driver: ChromeDriver, className: String) {
+    WebDriverWait(driver, 60).until(ExpectedConditions.presenceOfElementLocated(By.className(className)))
 }
 
 fun waitForClickableById(driver: ChromeDriver, id: String) {
