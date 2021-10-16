@@ -382,7 +382,7 @@ fun updateDbAfterSell(stock: Stock, soldQuantity: Int, soldPrice: Int, lastSoldP
 }
 
 fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, user: String, pw: String, email: Email) {
-    val moneyUnit = 750000 + 325000
+    val moneyUnit: Int = (20000000 * 0.075).toInt()
     var balance = bal
     val dayInMillisecond = 1000 * 60 * 60 * 24L
     val format = SimpleDateFormat("HH:mm:ss")
@@ -395,7 +395,7 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
     val isStockToConsiderArray = BooleanArray(stocks.size, {true})
 
     // 돈이 부족하였다가 장중 매도 후 돈이 다시 충분해진 후 매수하는 일을 방지하기 위함
-    var enoughBalance = if (currentTime < "09:10:00") true else false
+    var enoughBalance = !(balance < moneyUnit || "09:10:00" < currentTime)
 
     for (i in 0 until stocks.size) {
         isStockToConsiderArray[i] = !isNewStock(stocks[i].code)
@@ -429,10 +429,9 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
         currentTime = format.format(System.currentTimeMillis())
     }
 
-    while (openingTime <= currentTime && currentTime < closingTime) {
+    while (currentTime < closingTime) {
         println("정상 작동중.. (${currentTime})")
 
-        if (balance < moneyUnit) enoughBalance = false
         val isKospiNegative = isKospiDown()
 
         for (i in 0 until stocks.size) {
@@ -466,15 +465,16 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
                     isKospiNegative) {
                 val boughtQuantity = if (price > moneyUnit) 1 else moneyUnit / price
                 balance = buy(driver, stock, price, boughtQuantity, balance, user, pw, email)
+                if (balance < moneyUnit) enoughBalance = false
             }
-            //물타기 기능 - 매수평균가보다 현재가가 8% 이상 낮으면서 이평선 상향돌파 할 때 추가매수.
-            else if (currentProfit < - 8.0 && dayBeforeLastDay5 < dayBeforeLastDay20 && lastDay5 < lastDay20 &&
-                dayBeforeLastDay5 < lastDay5 && lastDay5 < current5 && current20 < current5 &&
-                current5 < price && getLastDayPrice(stock.code) < price &&
-                price < balance && moneyUnit <= balance) {
-                val boughtQuantity = if (price > moneyUnit) 1 else moneyUnit / price
-                balance = buy(driver, stock, price, boughtQuantity, balance, user, pw, email)
-            }
+//            //물타기 기능 - 매수평균가보다 현재가가 8% 이상 낮으면서 이평선 상향돌파 할 때 추가매수.
+//            else if (currentProfit < - 8.0 && dayBeforeLastDay5 < dayBeforeLastDay20 && lastDay5 < lastDay20 &&
+//                dayBeforeLastDay5 < lastDay5 && lastDay5 < current5 && current20 < current5 &&
+//                current5 < price && getLastDayPrice(stock.code) < price &&
+//                price < balance && moneyUnit <= balance) {
+//                val boughtQuantity = if (price > moneyUnit) 1 else moneyUnit / price
+//                balance = buy(driver, stock, price, boughtQuantity, balance, user, pw, email)
+//            }
             // sell - 데드크로스
             else if (stock.quantity > 0 && lastDay20 < lastDay5 && current5 < current20 &&
                 (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 1.0 &&

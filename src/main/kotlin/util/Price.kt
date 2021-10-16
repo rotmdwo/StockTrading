@@ -10,7 +10,7 @@ fun getPriceWithoutComma(price: String): Int { // 숫자 사이에 ',' 들어 �
 fun isKospiDown(): Boolean {
     val url = "https://finance.naver.com/sise/sise_index.naver?code=KOSPI"
     val document = Jsoup.connect(url).get()
-    val change_value_and_rate = document.getElementById("change_value_and_rate")
+    val change_value_and_rate = document.getElementById("change_value_and_rate") ?: return false
     val str = change_value_and_rate.text()
     val percentage = str.substring(str.indexOf(" ") + 1, str.indexOf("%")).toFloat()
 
