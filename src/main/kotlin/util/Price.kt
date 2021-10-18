@@ -14,7 +14,7 @@ fun isKospiDown(): Boolean {
     val str = change_value_and_rate.text()
     val percentage = str.substring(str.indexOf(" ") + 1, str.indexOf("%")).toFloat()
 
-    return percentage < 0
+    return percentage < -0.5
 }
 
 fun getCurrentPrice(stockCode: String): Int {

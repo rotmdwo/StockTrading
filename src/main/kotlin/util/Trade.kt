@@ -382,7 +382,7 @@ fun updateDbAfterSell(stock: Stock, soldQuantity: Int, soldPrice: Int, lastSoldP
 }
 
 fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, user: String, pw: String, email: Email) {
-    val moneyUnit: Int = (20000000 * 0.075).toInt()
+    val moneyUnit: Int = (20000000 * 0.06).toInt()
     var balance = bal
     val dayInMillisecond = 1000 * 60 * 60 * 24L
     val format = SimpleDateFormat("HH:mm:ss")
@@ -390,6 +390,7 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
     val closingTime = "15:20:00"
     var currentTime = format.format(System.currentTimeMillis())
 
+    val lastDayPrice = IntArray(stocks.size)
     val lastDayMA = Array(stocks.size, {IntArray(2)})
     val dayBeforeLastDayMA = Array(stocks.size, {IntArray(2)})
     val isStockToConsiderArray = BooleanArray(stocks.size, {true})
@@ -399,6 +400,12 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
 
     for (i in 0 until stocks.size) {
         isStockToConsiderArray[i] = !isNewStock(stocks[i].code)
+    }
+
+    // 전날 가격 가져옴
+    for (i in 0 until stocks.size) {
+        if (!isStockToConsiderArray[i]) continue
+        lastDayPrice[i] = getLastDayPrice(stocks[i].code)
     }
 
     // 전날 기준 이동평균값 가져옴
@@ -457,12 +464,14 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
             val currentProfit: Double = (price - stock.averagePrice) / stock.averagePrice.toDouble()
 
             // buy - 골든크로스
-            if (stock.quantity == 0 && dayBeforeLastDay5 < dayBeforeLastDay20 && lastDay5 < lastDay20 &&
-                    dayBeforeLastDay5 < lastDay5 && lastDay5 < current5 && current20 < current5 &&
-                    current5 < price && getLastDayPrice(stock.code) < price &&
-                    (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 1.0 &&
-                    price < balance && moneyUnit <= balance && enoughBalance &&
-                    isKospiNegative) {
+            if (isKospiNegative &&
+                stock.quantity == 0 &&
+                dayBeforeLastDay5 < dayBeforeLastDay20 && lastDay5 < lastDay20 &&
+                dayBeforeLastDay5 < lastDay5 && lastDay5 < current5 && current20 < current5 &&
+                current5 < price && lastDayPrice[i] < price &&
+                (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 1.0 &&
+                price < balance && moneyUnit <= balance && enoughBalance) {
+
                 val boughtQuantity = if (price > moneyUnit) 1 else moneyUnit / price
                 balance = buy(driver, stock, price, boughtQuantity, balance, user, pw, email)
                 if (balance < moneyUnit) enoughBalance = false
@@ -479,6 +488,7 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
             else if (stock.quantity > 0 && lastDay20 < lastDay5 && current5 < current20 &&
                 (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 1.0 &&
                 currentProfit > 0.005) {
+
                 val soldQuantity = stock.quantity
                 val lastSoldPoint = (currentProfit * 100).roundToLong().toDouble()
                 balance = sell(driver, stock, price, soldQuantity, lastSoldPoint, balance, user, pw, email)
@@ -561,6 +571,7 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
             }
             // sell : +6% 이익
             else if (stock.quantity > 0 && currentProfit > 0.06 && stock.lastSoldPoint < 6.0) {
+
                 val soldQuantity = (stock.quantity * 1 / 7).coerceAtLeast(1)
                 val lastSoldPoint = 6.0
                 balance = sell(driver, stock, price, soldQuantity, lastSoldPoint, balance, user, pw, email)
@@ -574,7 +585,7 @@ fun startAutoTrading(driver: ChromeDriver, stocks: ArrayList<Stock>, bal: Int, u
             }
                  */
             // sell : 오래된 주식들 매도
-//            else if (stock.quantity > 0 && (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 7.0) {
+//            else if (!isKospiNegative && stock.quantity > 0 && (System.currentTimeMillis() - stock.lastTradingDate) / dayInMillisecond.toDouble() > 7.0) {
 //
 //                if (stock.lastSoldPoint == 0.0 && currentProfit > 0.0225) {
 //                    val soldQuantity = (stock.quantity * 1 / 7).coerceAtLeast(1)
